@@ -19,7 +19,6 @@ import (
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
-	"github.com/cloudwego/kitex/pkg/transmeta"
 	"github.com/cloudwego/kitex/server"
 	"github.com/grayscalecloud/kitexcommon/mtl"
 	prometheus "github.com/kitex-contrib/monitor-prometheus"
@@ -28,16 +27,16 @@ import (
 	registryconsul "github.com/kitex-contrib/registry-consul"
 )
 
-type CommonServerSuite struct {
+type ConsulServerSuite struct {
 	CurrentServiceName string
 	RegistryAddr       string
 	OtelEndpoint       string
+	EnableMetrics      bool
+	EnableTracing      bool
 }
 
-func (s CommonServerSuite) Options() []server.Option {
-	opts := []server.Option{
-		server.WithMetaHandler(transmeta.ServerHTTP2Handler),
-	}
+func (s ConsulServerSuite) Options() []server.Option {
+	var opts []server.Option
 
 	r, err := registryconsul.NewConsulRegister(s.RegistryAddr)
 	if err != nil {
@@ -45,36 +44,35 @@ func (s CommonServerSuite) Options() []server.Option {
 	}
 	opts = append(opts, server.WithRegistry(r))
 
-	// ... consul 配置代码 ...
-
-	// 初始化 OpenTelemetry Provider
-	p := provider.NewOpenTelemetryProvider(
-		provider.WithServiceName(s.CurrentServiceName), // 添加服务名
-		provider.WithExportEndpoint(s.OtelEndpoint),
-		provider.WithEnableMetrics(false),
-		provider.WithEnableTracing(true),
-		provider.WithInsecure(),
-	)
-
-	// 注册关闭钩子
-	server.RegisterShutdownHook(func() {
-		if err := p.Shutdown(context.Background()); err != nil {
-			klog.Errorf("Failed to shutdown OpenTelemetry provider: %v", err)
-		}
-	})
-
-	klog.Infof("初始化 otel provider: 当前名字称：%s 注册地址：%s 上报地址：%s",
-		s.CurrentServiceName, s.RegistryAddr, s.OtelEndpoint)
+	if s.OtelEndpoint != "" {
+		// 初始化 OpenTelemetry Provider
+		p := provider.NewOpenTelemetryProvider(
+			provider.WithServiceName(s.CurrentServiceName), // 添加服务名
+			provider.WithExportEndpoint(s.OtelEndpoint),
+			provider.WithEnableMetrics(s.EnableMetrics),
+			provider.WithEnableTracing(s.EnableTracing),
+			provider.WithInsecure(),
+		)
+		// 注册关闭钩子
+		server.RegisterShutdownHook(func() {
+			if err := p.Shutdown(context.Background()); err != nil {
+				klog.Errorf("Failed to shutdown OpenTelemetry provider: %v", err)
+			}
+		})
+	}
 
 	opts = append(opts,
 		server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),
-		server.WithSuite(tracing.NewServerSuite()),
-		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
-			prometheus.WithDisableServer(true),
-			prometheus.WithRegistry(mtl.Registry))),
 	)
+	if s.EnableTracing {
+		opts = append(opts,
+			server.WithSuite(tracing.NewServerSuite()),
+			server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
+				prometheus.WithDisableServer(true),
+				prometheus.WithRegistry(mtl.Registry))))
+	}
 
 	return opts
 }
