@@ -16,6 +16,7 @@ package mtl
 
 import (
 	"io"
+	"os"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -29,27 +30,28 @@ import (
 func InitLog(ioWriter io.Writer, rootPath string, useTrace bool) {
 	var opts []kitexzap.Option
 	var output zapcore.WriteSyncer
-	//if os.Getenv("GO_ENV") != "online" {
-	//	opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())))
-	//	output = zapcore.AddSync(ioWriter)
-	//} else {
-	//// 创建控制台输出
-	//consoleOutput := zapcore.AddSync(io.Writer(os.Stdout))
-	//// 组合控制台和文件输出
-	//output = zapcore.NewMultiWriteSyncer(
-	//	consoleOutput,
-	//	&zapcore.BufferedWriteSyncer{
-	//		WS:            zapcore.AddSync(ioWriter),
-	//		FlushInterval: time.Minute,
-	//	},
-	//)
+	if os.Getenv("GO_ENV") != "online" {
+		opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())))
+		output = zapcore.AddSync(ioWriter)
+	} else {
+		// 创建控制台输出
+		consoleOutput := zapcore.AddSync(io.Writer(os.Stdout))
+		// 组合控制台和文件输出
+		output = zapcore.NewMultiWriteSyncer(
+			consoleOutput,
+			&zapcore.BufferedWriteSyncer{
+				WS:            zapcore.AddSync(ioWriter),
+				FlushInterval: time.Minute,
+			},
+		)
+	}
 	opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())))
 	//opts = append(opts, kitexzap.WithRecordStackTraceInSpan(true))
 	// async log
-	output = &zapcore.BufferedWriteSyncer{
-		WS:            zapcore.AddSync(ioWriter),
-		FlushInterval: time.Minute,
-	}
+	//output = &zapcore.BufferedWriteSyncer{
+	//	WS:            zapcore.AddSync(ioWriter),
+	//	FlushInterval: time.Minute,
+	//}
 	//}
 
 	server.RegisterShutdownHook(func() {
