@@ -32,11 +32,10 @@ func InitLog(ioWriter io.Writer, rootPath string, useTrace bool) {
 	var output zapcore.WriteSyncer
 
 	if os.Getenv("GO_ENV") == "dev" {
-		// 开发环境使用 ConsoleEncoder 并输出到控制台和文件
+		// 开发环境使用 ConsoleEncoder 并输出到控制台不输出到文件
 		opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())))
 		consoleOutput := zapcore.AddSync(os.Stdout)
-		fileOutput := zapcore.AddSync(ioWriter)
-		output = zapcore.NewMultiWriteSyncer(consoleOutput, fileOutput)
+		output = zapcore.NewMultiWriteSyncer(consoleOutput)
 	} else {
 		// 生产环境使用 JSONEncoder，并输出到控制台和带缓冲的文件
 		opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())))
