@@ -30,29 +30,23 @@ import (
 func InitLog(ioWriter io.Writer, rootPath string, useTrace bool) {
 	var opts []kitexzap.Option
 	var output zapcore.WriteSyncer
-	if os.Getenv("GO_ENV") != "online" {
+
+	if os.Getenv("GO_ENV") == "dev" {
+		// 开发环境使用 ConsoleEncoder 并输出到控制台和文件
 		opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())))
-		output = zapcore.AddSync(ioWriter)
+		consoleOutput := zapcore.AddSync(os.Stdout)
+		fileOutput := zapcore.AddSync(ioWriter)
+		output = zapcore.NewMultiWriteSyncer(consoleOutput, fileOutput)
 	} else {
-		// 创建控制台输出
-		consoleOutput := zapcore.AddSync(io.Writer(os.Stdout))
-		// 组合控制台和文件输出
-		output = zapcore.NewMultiWriteSyncer(
-			consoleOutput,
-			&zapcore.BufferedWriteSyncer{
-				WS:            zapcore.AddSync(ioWriter),
-				FlushInterval: time.Minute,
-			},
-		)
+		// 生产环境使用 JSONEncoder，并输出到控制台和带缓冲的文件
+		opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())))
+		consoleOutput := zapcore.AddSync(os.Stdout)
+		fileOutput := &zapcore.BufferedWriteSyncer{
+			WS:            zapcore.AddSync(ioWriter),
+			FlushInterval: time.Minute,
+		}
+		output = zapcore.NewMultiWriteSyncer(consoleOutput, fileOutput)
 	}
-	opts = append(opts, kitexzap.WithCoreEnc(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())))
-	//opts = append(opts, kitexzap.WithRecordStackTraceInSpan(true))
-	// async log
-	//output = &zapcore.BufferedWriteSyncer{
-	//	WS:            zapcore.AddSync(ioWriter),
-	//	FlushInterval: time.Minute,
-	//}
-	//}
 
 	server.RegisterShutdownHook(func() {
 		output.Sync() //nolint:errcheck
