@@ -27,7 +27,7 @@ enum Err {
     ProductSrvErr      = 40004,
     ActivitySrvErr     = 40005,
     CartSrvErr         = 40006,
-}
+} (go.type = "int64")
 
 struct ErrNo {
   1: i64 ErrCode,
