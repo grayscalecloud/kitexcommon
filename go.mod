@@ -2,13 +2,9 @@ module github.com/grayscalecloud/kitexcommon
 
 go 1.23.0
 
-replace github.com/apache/thrift => github.com/apache/thrift v0.13.0
-
 require (
 	aidanwoods.dev/go-paseto v1.5.4
-	github.com/apache/thrift v0.20.0
 	github.com/bytedance/gopkg v0.1.3
-	github.com/bytedance/sonic v1.14.1
 	github.com/cloudwego/hertz v0.10.2
 	github.com/cloudwego/kitex v0.14.1
 	github.com/hashicorp/consul/api v1.26.1
@@ -21,6 +17,7 @@ require (
 	github.com/kitex-contrib/obs-opentelemetry/logging/zap v0.0.0-20241120035129-55da83caab1b
 	github.com/kitex-contrib/registry-consul v0.2.0
 	github.com/kitex-contrib/registry-nacos v0.1.3
+	github.com/nacos-group/nacos-sdk-go v1.1.5
 	github.com/prometheus/client_golang v1.20.4
 	go.opentelemetry.io/otel v1.25.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.25.0
@@ -36,10 +33,11 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/cloudwego/configmanager v0.2.3 // indirect
 	github.com/cloudwego/dynamicgo v0.6.4 // indirect
 	github.com/cloudwego/fastpb v0.0.5 // indirect
@@ -81,7 +79,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nacos-group/nacos-sdk-go v1.1.5 // indirect
 	github.com/nyaruka/phonenumbers v1.0.55 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
