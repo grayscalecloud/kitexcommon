@@ -52,6 +52,13 @@ func PasetoAuth(audience string, pi model.PasetoConfig) app.HandlerFunc {
 	return paseto.New(paseto.WithParseFunc(pf), paseto.WithSuccessHandler(sh), paseto.WithErrorFunc(eh))
 }
 
+func BuildBaseResp(message errno.ErrNo) interface{} {
+	return map[string]interface{}{
+		"code": message.ErrCode,
+		"msg":  message.ErrMsg,
+	}
+}
+
 func PasetoAuthNotForce(audience string, pi model.PasetoConfig) app.HandlerFunc {
 	pf, err := paseto.NewV4PublicParseFunc(pi.PubKey, []byte(pi.Implicit), paseto.WithAudience(audience), paseto.WithNotBefore())
 	if err != nil {
