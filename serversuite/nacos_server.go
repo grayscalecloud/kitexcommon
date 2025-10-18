@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/server"
-	"github.com/grayscalecloud/kitexcommon/mtl"
+	"github.com/grayscalecloud/kitexcommon/monitor"
 	prometheus "github.com/kitex-contrib/monitor-prometheus"
 	"github.com/kitex-contrib/obs-opentelemetry/provider"
 	"github.com/kitex-contrib/obs-opentelemetry/tracing"
@@ -92,7 +92,7 @@ func (s NacosServerSuite) Options() []server.Option {
 		p := provider.NewOpenTelemetryProvider(
 			provider.WithServiceName(s.CurrentServiceName), // 添加服务名
 			provider.WithExportEndpoint(s.OtelEndpoint),
-			provider.WithEnableMetrics(s.EnableMetrics),
+			provider.WithEnableMetrics(false),
 			provider.WithEnableTracing(s.EnableTracing),
 			provider.WithInsecure(),
 		)
@@ -119,7 +119,7 @@ func (s NacosServerSuite) Options() []server.Option {
 			server.WithSuite(tracing.NewServerSuite()),
 			server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 				prometheus.WithDisableServer(true),
-				prometheus.WithRegistry(mtl.Registry))))
+				prometheus.WithRegistry(monitor.Reg))))
 	}
 
 	return opts
