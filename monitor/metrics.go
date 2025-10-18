@@ -21,8 +21,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/cloudwego/hertz/pkg/common/hlog"
-	"github.com/cloudwego/hertz/pkg/route"
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/grayscalecloud/kitexcommon/model"
 	"github.com/grayscalecloud/kitexcommon/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
@@ -35,7 +34,7 @@ import (
 
 var Reg *prometheus.Registry
 
-func initMetric(serverName string, cfg *model.Monitor) route.CtxCallback {
+func initMetric(serverName string, cfg *model.Monitor) CtxCallback {
 	Reg = prometheus.NewRegistry()
 	Reg.MustRegister(collectors.NewGoCollector())
 	Reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -43,7 +42,7 @@ func initMetric(serverName string, cfg *model.Monitor) route.CtxCallback {
 	// 解析Nacos服务器地址和端口
 	host, port, err := net.SplitHostPort(cfg.Registry.RegistryAddress)
 	if err != nil {
-		hlog.Error("解析Nacos服务器地址失败:", err)
+		klog.Error("解析Nacos服务器地址失败:", err)
 		return func(ctx context.Context) {}
 	}
 	portInt, _ := strconv.Atoi(port)
@@ -72,7 +71,7 @@ func initMetric(serverName string, cfg *model.Monitor) route.CtxCallback {
 		},
 	)
 	if err != nil {
-		hlog.Error("创建Nacos客户端失败:", err)
+		klog.Error("创建Nacos客户端失败:", err)
 		return func(ctx context.Context) {}
 	}
 
@@ -81,7 +80,7 @@ func initMetric(serverName string, cfg *model.Monitor) route.CtxCallback {
 	fmt.Println(localIp)
 	ip, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", localIp, cfg.Prometheus.MetricsPort))
 	if err != nil {
-		hlog.Error(err)
+		klog.Error(err)
 	}
 
 	// 注册服务到Nacos
@@ -100,7 +99,7 @@ func initMetric(serverName string, cfg *model.Monitor) route.CtxCallback {
 		},
 	})
 	if err != nil {
-		hlog.Error("注册服务到Nacos失败:", err)
+		klog.Error("注册服务到Nacos失败:", err)
 	}
 
 	// 启动metrics服务
