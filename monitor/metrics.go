@@ -35,6 +35,13 @@ import (
 var Reg *prometheus.Registry
 
 func initMetric(serverName string, cfg *hdmodel.Monitor) CtxCallback {
+
+	if cfg.Prometheus.Enable {
+		klog.Info("开启Prometheus监控")
+	} else {
+		klog.Info("未开启Prometheus监控")
+		return nil
+	}
 	Reg = prometheus.NewRegistry()
 	Reg.MustRegister(collectors.NewGoCollector())
 	Reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
