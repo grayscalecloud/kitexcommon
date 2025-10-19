@@ -2,61 +2,107 @@ package serversuite
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/server"
+	"github.com/grayscalecloud/kitexcommon/model"
 	"github.com/grayscalecloud/kitexcommon/monitor"
 	prometheus "github.com/kitex-contrib/monitor-prometheus"
 	"github.com/kitex-contrib/obs-opentelemetry/provider"
 	"github.com/kitex-contrib/obs-opentelemetry/tracing"
 	"github.com/kitex-contrib/registry-nacos/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients"
+	naming_client "github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
 )
 
+const (
+	// DefaultNacosPort 默认 Nacos 端口
+	DefaultNacosPort = 8848
+	// DefaultNacosAddr 默认 Nacos 地址
+	DefaultNacosAddr = "127.0.0.1"
+	// DefaultTimeoutMs 默认超时时间（毫秒）
+	DefaultTimeoutMs = 5000
+	// DefaultLogDir 默认日志目录
+	DefaultLogDir = "/tmp/nacos/log"
+	// DefaultCacheDir 默认缓存目录
+	DefaultCacheDir = "/tmp/nacos/cache"
+	// DefaultLogLevel 默认日志级别
+	DefaultLogLevel = "info"
+)
+
+// NacosServerSuite Nacos 服务端套件配置
 type NacosServerSuite struct {
+	// CurrentServiceName 当前服务名称
 	CurrentServiceName string
-	RegistryAddr       string
-	NacosPort          uint64
-	NamespaceId        string
-	OtelEndpoint       string
-	EnableMetrics      bool
-	EnableTracing      bool
-	Username           string
-	Password           string
+	// RegistryAddr 注册中心地址，格式：host:port
+	RegistryAddr string
+	// NacosPort Nacos 端口，当 RegistryAddr 未指定端口时使用
+	NacosPort uint64
+	// NamespaceId Nacos 命名空间 ID
+	NamespaceId string
+	// Username Nacos 认证用户名
+	Username string
+	// Password Nacos 认证密码
+	Password string
+	// Monitor 监控配置
+	Monitor *model.Monitor
 }
 
-func (s NacosServerSuite) Options() []server.Option {
-	var opts []server.Option
+// parseNacosAddr 解析 Nacos 地址和端口
+func (s NacosServerSuite) parseNacosAddr() (string, uint64, error) {
+	if s.RegistryAddr == "" {
+		return DefaultNacosAddr, DefaultNacosPort, nil
+	}
 
-	var serverAddr string
-	var serverPort uint64
+	addr := strings.Split(s.RegistryAddr, ":")
+	if len(addr) < 1 || addr[0] == "" {
+		return DefaultNacosAddr, DefaultNacosPort, nil
+	}
 
-	if s.RegistryAddr != "" {
-		addr := strings.Split(s.RegistryAddr, ":")
-		if len(addr) >= 1 {
-			serverAddr = addr[0]
+	serverAddr := addr[0]
+	var serverPort uint64 = DefaultNacosPort
+
+	// 解析端口
+	if len(addr) >= 2 && addr[1] != "" {
+		port, err := strconv.ParseUint(addr[1], 10, 64)
+		if err != nil {
+			return "", 0, fmt.Errorf("无效的端口号 '%s': %w", addr[1], err)
 		}
-		if len(addr) >= 2 && addr[1] != "" {
-			// 修复类型转换问题，使用strconv.ParseUint进行转换
-			port, err := strconv.ParseUint(addr[1], 10, 64)
-			if err != nil {
-				serverPort = 8848 // 默认端口
-			} else {
-				serverPort = port
-			}
-		} else if s.NacosPort != 0 {
-			serverPort = s.NacosPort
-		} else {
-			serverPort = 8848 // 默认端口
+		serverPort = port
+	} else if s.NacosPort != 0 {
+		serverPort = s.NacosPort
+	}
+
+	return serverAddr, serverPort, nil
+}
+
+// validateConfig 验证配置参数
+func (s NacosServerSuite) validateConfig() error {
+	if s.CurrentServiceName == "" {
+		return fmt.Errorf("服务名称不能为空")
+	}
+
+	// 验证 Monitor 配置
+	if s.Monitor != nil {
+		if s.Monitor.OTel.Enable && s.Monitor.OTel.Endpoint == "" {
+			return fmt.Errorf("启用 OpenTelemetry 时必须指定端点地址")
 		}
-	} else {
-		serverAddr = "127.0.0.1"
-		serverPort = 8848
+	}
+
+	return nil
+}
+
+// createNacosClient 创建 Nacos 客户端
+func (s NacosServerSuite) createNacosClient() (naming_client.INamingClient, error) {
+	serverAddr, serverPort, err := s.parseNacosAddr()
+	if err != nil {
+		return nil, fmt.Errorf("解析 Nacos 地址失败: %w", err)
 	}
 
 	sc := []constant.ServerConfig{
@@ -65,11 +111,11 @@ func (s NacosServerSuite) Options() []server.Option {
 
 	cc := constant.ClientConfig{
 		NamespaceId:         s.NamespaceId,
-		TimeoutMs:           5000,
+		TimeoutMs:           DefaultTimeoutMs,
 		NotLoadCacheAtStart: true,
-		LogDir:              "/tmp/nacos/log",
-		CacheDir:            "/tmp/nacos/cache",
-		LogLevel:            "info",
+		LogDir:              DefaultLogDir,
+		CacheDir:            DefaultCacheDir,
+		LogLevel:            DefaultLogLevel,
 		Username:            s.Username,
 		Password:            s.Password,
 	}
@@ -81,45 +127,87 @@ func (s NacosServerSuite) Options() []server.Option {
 		},
 	)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("创建 Nacos 客户端失败: %w", err)
 	}
 
+	return cli, nil
+}
+
+// setupOpenTelemetry 设置 OpenTelemetry
+func (s NacosServerSuite) setupOpenTelemetry() ([]server.Option, error) {
+	if s.Monitor == nil || !s.Monitor.OTel.Enable || s.Monitor.OTel.Endpoint == "" {
+		return nil, nil
+	}
+
+	p := provider.NewOpenTelemetryProvider(
+		provider.WithServiceName(s.CurrentServiceName),
+		provider.WithExportEndpoint(s.Monitor.OTel.Endpoint),
+		provider.WithEnableMetrics(false),
+		provider.WithEnableTracing(s.Monitor.OTel.Enable),
+		provider.WithInsecure(),
+	)
+
+	// 注册关闭钩子
+	server.RegisterShutdownHook(func() {
+		if err := p.Shutdown(context.Background()); err != nil {
+			klog.Errorf("关闭 OpenTelemetry provider 失败: %v", err)
+		}
+	})
+
+	klog.Infof("初始化 otel provider: 当前服务名称：%s 注册地址：%s 上报地址：%s",
+		s.CurrentServiceName, s.RegistryAddr, s.Monitor.OTel.Endpoint)
+
+	return nil, nil
+}
+
+// setupTracing 设置链路追踪
+func (s NacosServerSuite) setupTracing() []server.Option {
+	if s.Monitor == nil || !s.Monitor.OTel.Enable {
+		return nil
+	}
+
+	return []server.Option{
+		server.WithSuite(tracing.NewServerSuite()),
+		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
+			prometheus.WithDisableServer(true),
+			prometheus.WithRegistry(monitor.Reg))),
+	}
+}
+
+// Options 返回服务器选项配置
+func (s NacosServerSuite) Options() []server.Option {
+	// 验证配置
+	if err := s.validateConfig(); err != nil {
+		klog.Fatalf("配置验证失败: %v", err)
+	}
+
+	var opts []server.Option
+
+	// 创建 Nacos 客户端
+	cli, err := s.createNacosClient()
+	if err != nil {
+		klog.Fatalf("创建 Nacos 客户端失败: %v", err)
+	}
+
+	// 设置注册中心
 	r := registry.NewNacosRegistry(cli)
 	opts = append(opts, server.WithRegistry(r))
 
-	if s.OtelEndpoint != "" {
-		// 初始化 OpenTelemetry Provider
-		p := provider.NewOpenTelemetryProvider(
-			provider.WithServiceName(s.CurrentServiceName), // 添加服务名
-			provider.WithExportEndpoint(s.OtelEndpoint),
-			provider.WithEnableMetrics(false),
-			provider.WithEnableTracing(s.EnableTracing),
-			provider.WithInsecure(),
-		)
-
-		// 注册关闭钩子
-		server.RegisterShutdownHook(func() {
-			if err := p.Shutdown(context.Background()); err != nil {
-				klog.Errorf("Failed to shutdown OpenTelemetry provider: %v", err)
-			}
-		})
-
-		klog.Infof("初始化 otel provider: 当前名字称：%s 注册地址：%s 上报地址：%s",
-			s.CurrentServiceName, s.RegistryAddr, s.OtelEndpoint)
+	// 设置 OpenTelemetry
+	if _, err := s.setupOpenTelemetry(); err != nil {
+		klog.Fatalf("设置 OpenTelemetry 失败: %v", err)
 	}
 
+	// 设置服务基本信息
 	opts = append(opts,
 		server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),
 	)
 
-	if s.EnableTracing {
-		opts = append(opts,
-			server.WithSuite(tracing.NewServerSuite()),
-			server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
-				prometheus.WithDisableServer(true),
-				prometheus.WithRegistry(monitor.Reg))))
+	// 设置链路追踪
+	if tracingOpts := s.setupTracing(); tracingOpts != nil {
+		opts = append(opts, tracingOpts...)
 	}
 
 	return opts
