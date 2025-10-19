@@ -4,7 +4,7 @@ import (
 	"github.com/grayscalecloud/kitexcommon/hdmodel"
 )
 
-func Init(serviceName string, cfg *hdmodel.Monitor) CtxCallback {
+func InitMonitor(serviceName string, cfg *hdmodel.Monitor) CtxCallback {
 	if cfg.Enabled {
 		return initMetric(serviceName, cfg)
 	}
