@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/pkg/rpcinfo"
 	"github.com/cloudwego/kitex/server"
-	"github.com/grayscalecloud/kitexcommon/model"
+	"github.com/grayscalecloud/kitexcommon/hdmodel"
 	"github.com/grayscalecloud/kitexcommon/monitor"
 	prometheus "github.com/kitex-contrib/monitor-prometheus"
 	"github.com/kitex-contrib/obs-opentelemetry/provider"
@@ -51,7 +51,7 @@ type NacosServerSuite struct {
 	// Password Nacos 认证密码
 	Password string
 	// Monitor 监控配置
-	Monitor *model.Monitor
+	Monitor *hdmodel.Monitor
 }
 
 // parseNacosAddr 解析 Nacos 地址和端口

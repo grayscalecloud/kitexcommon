@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
-	"github.com/grayscalecloud/kitexcommon/model"
+	"github.com/grayscalecloud/kitexcommon/hdmodel"
 	"github.com/hashicorp/consul/api"
 	"gopkg.in/yaml.v2"
 )
 
 type CommonConfig struct {
 	Env   string
-	Kitex model.Kitex `yaml:"kitex"`
-	MySQL model.MySQL `yaml:"mysql"`
-	Redis model.Redis `yaml:"redis"`
-	OTel  model.OTel  `yaml:"otel"`
+	Kitex hdmodel.Kitex `yaml:"kitex"`
+	MySQL hdmodel.MySQL `yaml:"mysql"`
+	Redis hdmodel.Redis `yaml:"redis"`
+	OTel  hdmodel.OTel  `yaml:"otel"`
 }
 
 // ConsulConfigClient Consul 配置客户端
@@ -100,19 +100,19 @@ func (c *ConsulConfigClient) DeleteConfig(dataId, group string) error {
 // ListenConfig 监听配置变化（Consul 使用 blocking query）
 func (c *ConsulConfigClient) ListenConfig(dataId, group string, callback func(content string)) error {
 	key := c.buildKey(dataId, group)
-	
+
 	// 检查是否已经在监听
 	if _, exists := c.watchChans[key]; exists {
 		return fmt.Errorf("配置已在监听中: %s", key)
 	}
-	
+
 	// 创建停止通道
 	stopChan := make(chan struct{})
 	c.watchChans[key] = stopChan
-	
+
 	// 启动监听 goroutine
 	go c.watchKey(key, stopChan, callback)
-	
+
 	klog.Infof("开始监听 Consul 配置: %s", key)
 	return nil
 }
@@ -120,20 +120,20 @@ func (c *ConsulConfigClient) ListenConfig(dataId, group string, callback func(co
 // WatchConfig 监听配置变化，返回配置变化通道
 func (c *ConsulConfigClient) WatchConfig(dataId, group string) (<-chan string, error) {
 	key := c.buildKey(dataId, group)
-	
+
 	// 检查是否已经在监听
 	if _, exists := c.watchChans[key]; exists {
 		return nil, fmt.Errorf("配置已在监听中: %s", key)
 	}
-	
+
 	// 创建配置变化通道
 	configChan := make(chan string, 10) // 带缓冲的通道
 	stopChan := make(chan struct{})
 	c.watchChans[key] = stopChan
-	
+
 	// 启动监听 goroutine
 	go c.watchKeyWithChan(key, stopChan, configChan)
-	
+
 	klog.Infof("开始监听 Consul 配置: %s", key)
 	return configChan, nil
 }
@@ -145,9 +145,9 @@ func (c *ConsulConfigClient) watchKey(key string, stopChan chan struct{}, callba
 		delete(c.watchChans, key)
 		klog.Infof("停止监听 Consul 配置: %s", key)
 	}()
-	
+
 	var lastIndex uint64 = 0
-	
+
 	for {
 		select {
 		case <-stopChan:
@@ -158,17 +158,17 @@ func (c *ConsulConfigClient) watchKey(key string, stopChan chan struct{}, callba
 				WaitIndex: lastIndex,
 				WaitTime:  30 * time.Second, // 30秒超时
 			}
-			
+
 			kvPair, meta, err := c.client.KV().Get(key, queryOptions)
 			if err != nil {
 				klog.Errorf("监听配置失败 [%s]: %v", key, err)
 				time.Sleep(5 * time.Second) // 出错后等待5秒再重试
 				continue
 			}
-			
+
 			// 更新 lastIndex
 			lastIndex = meta.LastIndex
-			
+
 			// 检查是否有变化
 			if kvPair != nil {
 				// 配置存在，调用回调函数
@@ -189,9 +189,9 @@ func (c *ConsulConfigClient) watchKeyWithChan(key string, stopChan chan struct{}
 		close(configChan) // 关闭配置通道
 		klog.Infof("停止监听 Consul 配置: %s", key)
 	}()
-	
+
 	var lastIndex uint64 = 0
-	
+
 	for {
 		select {
 		case <-stopChan:
@@ -202,17 +202,17 @@ func (c *ConsulConfigClient) watchKeyWithChan(key string, stopChan chan struct{}
 				WaitIndex: lastIndex,
 				WaitTime:  30 * time.Second, // 30秒超时
 			}
-			
+
 			kvPair, meta, err := c.client.KV().Get(key, queryOptions)
 			if err != nil {
 				klog.Errorf("监听配置失败 [%s]: %v", key, err)
 				time.Sleep(5 * time.Second) // 出错后等待5秒再重试
 				continue
 			}
-			
+
 			// 更新 lastIndex
 			lastIndex = meta.LastIndex
-			
+
 			// 检查是否有变化
 			if kvPair != nil {
 				// 配置存在，发送到通道
@@ -250,13 +250,13 @@ func (c *ConsulConfigClient) GetCommonConfig(group string) (*CommonConfig, error
 }
 
 // GetPasetoPubConfig 获取 Paseto 公钥配置
-func (c *ConsulConfigClient) GetPasetoPubConfig(group string) (*model.PasetoConfig, error) {
+func (c *ConsulConfigClient) GetPasetoPubConfig(group string) (*hdmodel.PasetoConfig, error) {
 	content, err := c.GetConfig("pasetopub", group)
 	if err != nil {
 		return nil, err
 	}
 
-	conf := new(model.PasetoConfig)
+	conf := new(hdmodel.PasetoConfig)
 	err = yaml.Unmarshal([]byte(content), &conf)
 	if err != nil {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
@@ -266,13 +266,13 @@ func (c *ConsulConfigClient) GetPasetoPubConfig(group string) (*model.PasetoConf
 }
 
 // GetPasetoSecretConfig 获取 Paseto 密钥配置
-func (c *ConsulConfigClient) GetPasetoSecretConfig(group string) (*model.PasetoConfig, error) {
+func (c *ConsulConfigClient) GetPasetoSecretConfig(group string) (*hdmodel.PasetoConfig, error) {
 	content, err := c.GetConfig("pasetosecret", group)
 	if err != nil {
 		return nil, err
 	}
 
-	conf := new(model.PasetoConfig)
+	conf := new(hdmodel.PasetoConfig)
 	err = yaml.Unmarshal([]byte(content), &conf)
 	if err != nil {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
@@ -292,12 +292,12 @@ func (c *ConsulConfigClient) buildKey(dataId, group string) string {
 // StopListenConfig 停止监听指定配置
 func (c *ConsulConfigClient) StopListenConfig(dataId, group string) error {
 	key := c.buildKey(dataId, group)
-	
+
 	if stopChan, exists := c.watchChans[key]; exists {
 		close(stopChan)
 		return nil
 	}
-	
+
 	return fmt.Errorf("配置监听不存在: %s", key)
 }
 
@@ -307,7 +307,7 @@ func (c *ConsulConfigClient) StopAllListenConfigs() error {
 		close(stopChan)
 		klog.Infof("停止监听 Consul 配置: %s", key)
 	}
-	
+
 	// 清空监听通道映射
 	c.watchChans = make(map[string]chan struct{})
 	return nil
@@ -317,7 +317,7 @@ func (c *ConsulConfigClient) StopAllListenConfigs() error {
 func (c *ConsulConfigClient) Close() error {
 	// 停止所有监听
 	c.StopAllListenConfigs()
-	
+
 	// Consul 客户端不需要显式关闭
 	return nil
 }
@@ -364,7 +364,7 @@ func GetKvConfig[T any](registryAddr string, keyName string) (*T, error) {
 	return conf, nil
 }
 
-func GetPasetoPubConfig(registryAddr string) (*model.PasetoConfig, error) {
+func GetPasetoPubConfig(registryAddr string) (*hdmodel.PasetoConfig, error) {
 	client, err := api.NewClient(&api.Config{Address: registryAddr})
 	if err != nil {
 		fmt.Println("Error creating Consul client:", err)
@@ -376,7 +376,7 @@ func GetPasetoPubConfig(registryAddr string) (*model.PasetoConfig, error) {
 		fmt.Println("Error getting config:", err)
 		return nil, err
 	}
-	conf := new(model.PasetoConfig)
+	conf := new(hdmodel.PasetoConfig)
 	err = yaml.Unmarshal(content.Value, &conf)
 	if err != nil {
 		klog.Error("parse yaml error - %v", err)
@@ -385,7 +385,7 @@ func GetPasetoPubConfig(registryAddr string) (*model.PasetoConfig, error) {
 
 	return conf, nil
 }
-func GetPasetoSecretConfig(registryAddr string) (*model.PasetoConfig, error) {
+func GetPasetoSecretConfig(registryAddr string) (*hdmodel.PasetoConfig, error) {
 	client, err := api.NewClient(&api.Config{Address: registryAddr})
 	if err != nil {
 		fmt.Println("Error creating Consul client:", err)
@@ -397,7 +397,7 @@ func GetPasetoSecretConfig(registryAddr string) (*model.PasetoConfig, error) {
 		fmt.Println("Error getting config:", err)
 		return nil, err
 	}
-	conf := new(model.PasetoConfig)
+	conf := new(hdmodel.PasetoConfig)
 	err = yaml.Unmarshal(content.Value, &conf)
 	if err != nil {
 		klog.Error("parse yaml error - %v", err)

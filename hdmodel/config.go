@@ -1,4 +1,4 @@
-package model
+package hdmodel
 
 type Kitex struct {
 	Service         string `yaml:"service"`
@@ -32,8 +32,9 @@ type Registry struct {
 }
 
 type Monitor struct {
-	Enabled    bool       `yaml:"enabled"`
-	OTel       OTel       `yaml:"otel"`
-	Prometheus Prometheus `yaml:"prometheus"`
-	Registry   Registry   `yaml:"registry"`
+	Enabled       bool       `yaml:"enabled"`
+	OTel          OTel       `yaml:"otel"`
+	Prometheus    Prometheus `yaml:"prometheus"`
+	Registry      Registry   `yaml:"registry"`
+	EnableTracing bool       `yaml:"enable_tracing"`
 }

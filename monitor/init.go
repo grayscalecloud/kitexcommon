@@ -1,8 +1,10 @@
 package monitor
 
-import "github.com/grayscalecloud/kitexcommon/model"
+import (
+	"github.com/grayscalecloud/kitexcommon/hdmodel"
+)
 
-func Init(serviceName string, cfg *model.Monitor) CtxCallback {
+func Init(serviceName string, cfg *hdmodel.Monitor) CtxCallback {
 	if cfg.Enabled {
 		return initMetric(serviceName, cfg)
 	}

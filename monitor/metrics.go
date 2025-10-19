@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/cloudwego/kitex/pkg/klog"
-	"github.com/grayscalecloud/kitexcommon/model"
+	"github.com/grayscalecloud/kitexcommon/hdmodel"
 	"github.com/grayscalecloud/kitexcommon/utils"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
@@ -34,7 +34,7 @@ import (
 
 var Reg *prometheus.Registry
 
-func initMetric(serverName string, cfg *model.Monitor) CtxCallback {
+func initMetric(serverName string, cfg *hdmodel.Monitor) CtxCallback {
 	Reg = prometheus.NewRegistry()
 	Reg.MustRegister(collectors.NewGoCollector())
 	Reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
