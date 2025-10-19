@@ -74,18 +74,20 @@ func (l *TraceLogger) logWithTrace(ctx context.Context, level, msg string) {
 				l.Logger.CtxErrorf(ctx, "Failed to add trace attributes: %v", r)
 			}
 		}()
+		var attrs []attribute.KeyValue
+		if level == "TRACE" || level == "INFO" || level == "WARN" || level == "ERROR" || level == "FATAL" {
+			// 准备属性列表
+			attrs = []attribute.KeyValue{
+				attribute.String("level", level),
+				attribute.String("message", msg),
+				attribute.String("caller", caller),
+				attribute.String("tenantId", tenantId),
+			}
+			// 添加自定义字段
+			for k, v := range l.fields {
+				attrs = append(attrs, attribute.String("field."+k, fmt.Sprintf("%v", v)))
+			}
 
-		// 准备属性列表
-		attrs := []attribute.KeyValue{
-			attribute.String("level", level),
-			attribute.String("message", msg),
-			attribute.String("caller", caller),
-			attribute.String("tenantId", tenantId),
-		}
-
-		// 添加自定义字段
-		for k, v := range l.fields {
-			attrs = append(attrs, attribute.String("field."+k, fmt.Sprintf("%v", v)))
 		}
 
 		span.AddEvent("log", trace.WithAttributes(attrs...))

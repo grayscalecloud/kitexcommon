@@ -5,7 +5,7 @@ import (
 )
 
 func InitMonitor(serviceName string, cfg *hdmodel.Monitor) CtxCallback {
-	if cfg.Enabled {
+	if cfg.Enable {
 		return initMetric(serviceName, cfg)
 	}
 	return nil

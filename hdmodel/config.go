@@ -32,7 +32,7 @@ type Registry struct {
 }
 
 type Monitor struct {
-	Enabled       bool       `yaml:"enabled"`
+	Enable        bool       `yaml:"enable"`
 	OTel          OTel       `yaml:"otel"`
 	Prometheus    Prometheus `yaml:"prometheus"`
 	Registry      Registry   `yaml:"registry"`
