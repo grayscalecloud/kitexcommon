@@ -17,6 +17,8 @@ package monitor
 import (
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/cloudwego/kitex/pkg/klog"
@@ -27,6 +29,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// GetProjectRoot 返回项目根目录
+func GetProjectRoot() string {
+	var projectRoot string
+	// 使用编译时的文件路径来确定项目根目录
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		projectRoot = ""
+	}
+	// 获取base包所在目录的父目录作为项目根目录
+	projectRoot = filepath.Dir(filepath.Dir(file))
+	return projectRoot
+}
+
+// InitLog 初始化日志
 func InitLog(ioWriter io.Writer, rootPath string, useTrace bool) {
 	var opts []kitexzap.Option
 	var output zapcore.WriteSyncer
