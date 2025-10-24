@@ -2,6 +2,7 @@ package copierConv
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -73,7 +74,18 @@ func GetUnixMilliToTimeConverter() copier.TypeConverter {
 }
 
 // GetTimeToStringConverter 返回一个类型转换器，用于将 time.Time 转换为格式化的日期字符串
-// 该转换器将 time.Time 对象转换为格式为 "2006-01-02 15:04:05" 的字符串
+// 该转换器支持多种输出格式，包括：
+// - "2006-01-02 15:04:05" (标准格式)
+// - "2006-01-02T15:04:05Z" (RFC3339)
+// - "2006-01-02T15:04:05.000Z" (RFC3339 with milliseconds)
+// - "2006-01-02T15:04:05+08:00" (RFC3339 with timezone)
+// - "2006-01-02" (日期格式)
+// - "15:04:05" (时间格式)
+// - "2006/01/02 15:04:05" (斜杠分隔格式)
+// - "01/02/2006 15:04:05" (美式格式)
+// - "02/01/2006 15:04:05" (欧式格式)
+// - Unix 时间戳 (数字字符串)
+// 默认使用标准格式 "2006-01-02 15:04:05"
 func GetTimeToStringConverter() copier.TypeConverter {
 	return copier.TypeConverter{
 		SrcType: time.Time{},
@@ -88,9 +100,73 @@ func GetTimeToStringConverter() copier.TypeConverter {
 	}
 }
 
+// GetTimeToStringConverterWithFormat 返回一个指定格式的时间到字符串转换器
+// format 参数直接使用 Go 的时间格式字符串，例如：
+// - "2006-01-02 15:04:05" (标准格式)
+// - "2006-01-02T15:04:05Z" (RFC3339)
+// - "2006-01-02T15:04:05.000Z" (RFC3339 with milliseconds)
+// - "2006-01-02T15:04:05Z07:00" (RFC3339 with timezone)
+// - "2006-01-02" (日期格式)
+// - "15:04:05" (时间格式)
+// - "2006/01/02 15:04:05" (斜杠分隔格式)
+// - "01/02/2006 15:04:05" (美式格式)
+// - "02/01/2006 15:04:05" (欧式格式)
+func GetTimeToStringConverterWithFormat(format string) copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: time.Time{},
+		DstType: "",
+		Fn: func(src interface{}) (interface{}, error) {
+			t, ok := src.(time.Time)
+			if !ok {
+				return nil, nil
+			}
+			return t.Format(format), nil
+		},
+	}
+}
+
+// GetTimeToUnixStringConverter 返回一个将 time.Time 转换为 Unix 时间戳字符串的转换器
+// timestampType 参数支持：
+// - "unix": Unix 时间戳 (秒)
+// - "unixms": Unix 时间戳 (毫秒)
+// - "unixns": Unix 时间戳 (纳秒)
+func GetTimeToUnixStringConverter(timestampType string) copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: time.Time{},
+		DstType: "",
+		Fn: func(src interface{}) (interface{}, error) {
+			t, ok := src.(time.Time)
+			if !ok {
+				return nil, nil
+			}
+			
+			switch timestampType {
+			case "unix":
+				return fmt.Sprintf("%d", t.Unix()), nil
+			case "unixms":
+				return fmt.Sprintf("%d", t.UnixMilli()), nil
+			case "unixns":
+				return fmt.Sprintf("%d", t.UnixNano()), nil
+			default:
+				return fmt.Sprintf("%d", t.Unix()), nil
+			}
+		},
+	}
+}
+
 // GetStringToTimeConverter 返回一个类型转换器，用于将格式化的日期字符串转换为 time.Time
-// 该转换器将格式为 "2006-01-02 15:04:05" 的字符串转换为 time.Time 对象
-// 如果字符串格式不正确，将返回错误
+// 该转换器支持多种时间格式，包括：
+// - "2006-01-02 15:04:05" (标准格式)
+// - "2006-01-02T15:04:05Z" (RFC3339)
+// - "2006-01-02T15:04:05.000Z" (RFC3339 with milliseconds)
+// - "2006-01-02T15:04:05+08:00" (RFC3339 with timezone)
+// - "2006-01-02" (日期格式)
+// - "15:04:05" (时间格式)
+// - "2006/01/02 15:04:05" (斜杠分隔格式)
+// - "01/02/2006 15:04:05" (美式格式)
+// - "02/01/2006 15:04:05" (欧式格式)
+// - Unix 时间戳 (数字字符串)
+// 如果所有格式都无法解析，将返回错误
 func GetStringToTimeConverter() copier.TypeConverter {
 	return copier.TypeConverter{
 		SrcType: "",
@@ -100,7 +176,63 @@ func GetStringToTimeConverter() copier.TypeConverter {
 			if !ok {
 				return nil, nil
 			}
-			return time.Parse("2006-01-02 15:04:05", s)
+
+			// 定义支持的时间格式
+			timeFormats := []string{
+				"2006-01-02 15:04:05",           // 标准格式
+				"2006-01-02T15:04:05Z",          // RFC3339
+				"2006-01-02T15:04:05.000Z",      // RFC3339 with milliseconds
+				"2006-01-02T15:04:05Z07:00",     // RFC3339 with timezone
+				"2006-01-02T15:04:05.000Z07:00", // RFC3339 with milliseconds and timezone
+				"2006-01-02",                    // 日期格式
+				"15:04:05",                      // 时间格式
+				"2006/01/02 15:04:05",           // 斜杠分隔格式
+				"01/02/2006 15:04:05",           // 美式格式
+				"02/01/2006 15:04:05",           // 欧式格式
+				"2006-01-02 15:04:05.000",       // 带毫秒的标准格式
+				"2006-01-02T15:04:05",           // ISO 格式（无时区）
+				"2006-01-02T15:04:05.000",       // ISO 格式带毫秒（无时区）
+			}
+
+			// 尝试解析 Unix 时间戳（数字字符串）
+			if timestamp, err := strconv.ParseInt(s, 10, 64); err == nil {
+				// 判断是秒级还是毫秒级时间戳
+				if timestamp > 1e10 { // 毫秒级时间戳
+					return time.Unix(timestamp/1000, (timestamp%1000)*1e6), nil
+				} else { // 秒级时间戳
+					return time.Unix(timestamp, 0), nil
+				}
+			}
+
+			// 尝试各种时间格式
+			for _, format := range timeFormats {
+				if t, err := time.Parse(format, s); err == nil {
+					return t, nil
+				}
+			}
+
+			// 尝试使用 time.Parse 的默认解析（支持更多格式）
+			if t, err := time.Parse(time.RFC3339, s); err == nil {
+				return t, nil
+			}
+
+			// 尝试解析为 Unix 时间戳（浮点数）
+			if timestamp, err := strconv.ParseFloat(s, 64); err == nil {
+				// 判断是秒级还是毫秒级时间戳
+				if timestamp > 1e10 { // 毫秒级时间戳
+					sec := int64(timestamp / 1000)
+					nsec := int64((timestamp - float64(sec*1000)) * 1e6)
+					return time.Unix(sec, nsec), nil
+				} else { // 秒级时间戳
+					sec := int64(timestamp)
+					// 使用更精确的纳秒计算
+					fractional := timestamp - float64(sec)
+					nsec := int64(fractional * 1e9)
+					return time.Unix(sec, nsec), nil
+				}
+			}
+
+			return nil, fmt.Errorf("无法解析时间字符串: %s", s)
 		},
 	}
 }
