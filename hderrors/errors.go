@@ -1,6 +1,6 @@
-// Package errors 提供了一个通用的错误处理机制
+// Package hderrors  提供了一个通用的错误处理机制
 // 支持错误包装、错误堆栈和错误类型检查
-package errors
+package hderrors
 
 import (
 	"errors"
@@ -11,17 +11,35 @@ import (
 
 // 标准错误类型
 var (
-	// 标准库错误
+	// New 标准库错误
 	New    = errors.New
 	Is     = errors.Is
 	As     = errors.As
 	Unwrap = errors.Unwrap
 )
 
-// Error 自定义错误结构
+type EnumsType interface {
+	ToInt() int64
+}
+
+type DefaultEnumsType struct {
+	Code int64
+}
+
+func NewDefaultEnumsType(code int64) *DefaultEnumsType {
+	return &DefaultEnumsType{
+		Code: code,
+	}
+}
+
+func (e *DefaultEnumsType) ToInt() int64 {
+	return e.Code
+}
+
+// BusinessError 自定义错误结构
 // 包含错误码、错误消息和堆栈信息
-type Error struct {
-	Code    int         // 错误码
+type BusinessError struct {
+	Code    EnumsType   // 错误码
 	Message string      // 错误消息
 	Cause   error       // 原始错误
 	Stack   []StackInfo // 堆栈信息
@@ -42,8 +60,8 @@ type StackInfo struct {
 //
 // 返回:
 //   - 自定义错误
-func NewError(code int, message string) *Error {
-	return &Error{
+func NewError(code EnumsType, message string) *BusinessError {
+	return &BusinessError{
 		Code:    code,
 		Message: message,
 		Stack:   captureStack(2),
@@ -59,12 +77,12 @@ func NewError(code int, message string) *Error {
 //
 // 返回:
 //   - 包装后的错误
-func Wrap(err error, code int, message string) *Error {
+func Wrap(err error, code EnumsType, message string) *BusinessError {
 	if err == nil {
 		return nil
 	}
 
-	return &Error{
+	return &BusinessError{
 		Code:    code,
 		Message: message,
 		Cause:   err,
@@ -86,8 +104,9 @@ func WrapWithMessage(err error, message string) error {
 	}
 
 	// 如果是自定义错误，保留错误码
-	if e, ok := err.(*Error); ok {
-		return &Error{
+	var e *BusinessError
+	if errors.As(err, &e) {
+		return &BusinessError{
 			Code:    e.Code,
 			Message: message,
 			Cause:   e.Cause,
@@ -95,8 +114,8 @@ func WrapWithMessage(err error, message string) error {
 		}
 	}
 
-	return &Error{
-		Code:    -1, // 默认错误码
+	return &BusinessError{
+		Code:    NewDefaultEnumsType(-1), // 默认错误码
 		Message: message,
 		Cause:   err,
 		Stack:   captureStack(2),
@@ -104,7 +123,7 @@ func WrapWithMessage(err error, message string) error {
 }
 
 // Error 实现error接口
-func (e *Error) Error() string {
+func (e *BusinessError) Error() string {
 	if e.Cause != nil {
 		return fmt.Sprintf("[%d] %s: %s", e.Code, e.Message, e.Cause.Error())
 	}
@@ -112,27 +131,27 @@ func (e *Error) Error() string {
 }
 
 // Unwrap 获取原始错误
-func (e *Error) Unwrap() error {
+func (e *BusinessError) Unwrap() error {
 	return e.Cause
 }
 
 // GetCode 获取错误码
-func (e *Error) GetCode() int {
-	return e.Code
+func (e *BusinessError) GetCode() int64 {
+	return e.Code.ToInt()
 }
 
 // GetMessage 获取错误消息
-func (e *Error) GetMessage() string {
+func (e *BusinessError) GetMessage() string {
 	return e.Message
 }
 
 // GetStack 获取堆栈信息
-func (e *Error) GetStack() []StackInfo {
+func (e *BusinessError) GetStack() []StackInfo {
 	return e.Stack
 }
 
 // FormatStack 格式化堆栈信息
-func (e *Error) FormatStack() string {
+func (e *BusinessError) FormatStack() string {
 	if len(e.Stack) == 0 {
 		return ""
 	}
@@ -165,11 +184,14 @@ func captureStack(skip int) []StackInfo {
 			Line:     frame.Line,
 			Function: frame.Function,
 		})
-
-		if !more {
-			break
-		}
 	}
 
 	return stack
+}
+
+// IsBusinessError 检查错误是否为业务错误
+func IsBusinessError(err error) bool {
+	var businessError *BusinessError
+	ok := errors.As(err, &businessError)
+	return ok
 }
