@@ -43,6 +43,7 @@ type BusinessError struct {
 	Message string      // 错误消息
 	Cause   error       // 原始错误
 	Stack   []StackInfo // 堆栈信息
+	extra   map[string]string
 }
 
 // StackInfo 堆栈信息
@@ -138,6 +139,16 @@ func (e *BusinessError) Unwrap() error {
 // GetCode 获取错误码
 func (e *BusinessError) GetCode() int64 {
 	return e.Code.ToInt()
+}
+
+func (e *BusinessError) BizStatusCode() int32 {
+	return int32(e.Code.ToInt())
+}
+func (e *BusinessError) BizMessage() string {
+	return e.Message
+}
+func (e *BusinessError) BizExtra() map[string]string {
+	return e.extra
 }
 
 // GetMessage 获取错误消息
