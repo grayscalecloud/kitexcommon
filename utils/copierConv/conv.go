@@ -407,7 +407,7 @@ func GetBoolToInt8Converter() copier.TypeConverter {
 		},
 	}
 }
-func GetStringToTimePtrConverte() copier.TypeConverter {
+func GetStringToTimePtrConverter() copier.TypeConverter {
 	return copier.TypeConverter{
 		SrcType: "",
 		DstType: &time.Time{},
