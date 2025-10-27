@@ -139,7 +139,7 @@ func GetTimeToUnixStringConverter(timestampType string) copier.TypeConverter {
 			if !ok {
 				return nil, nil
 			}
-			
+
 			switch timestampType {
 			case "unix":
 				return fmt.Sprintf("%d", t.Unix()), nil
@@ -404,6 +404,79 @@ func GetBoolToInt8Converter() copier.TypeConverter {
 				return int8(1), nil
 			}
 			return int8(0), nil
+		},
+	}
+}
+func GetStringToTimePtrConverte() copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: "",
+		DstType: &time.Time{},
+		Fn: func(src interface{}) (interface{}, error) {
+			s, ok := src.(string)
+			if !ok {
+				return nil, nil
+			}
+
+			// 定义支持的时间格式
+			timeFormats := []string{
+				"2006-01-02 15:04:05",           // 标准格式
+				"2006-01-02T15:04:05Z",          // RFC3339
+				"2006-01-02T15:04:05.000Z",      // RFC3339 with milliseconds
+				"2006-01-02T15:04:05Z07:00",     // RFC3339 with timezone
+				"2006-01-02T15:04:05.000Z07:00", // RFC3339 with milliseconds and timezone
+				"2006-01-02",                    // 日期格式
+				"15:04:05",                      // 时间格式
+				"2006/01/02 15:04:05",           // 斜杠分隔格式
+				"01/02/2006 15:04:05",           // 美式格式
+				"02/01/2006 15:04:05",           // 欧式格式
+				"2006-01-02 15:04:05.000",       // 带毫秒的标准格式
+				"2006-01-02T15:04:05",           // ISO 格式（无时区）
+				"2006-01-02T15:04:05.000",       // ISO 格式带毫秒（无时区）
+			}
+
+			// 尝试解析 Unix 时间戳（数字字符串）
+			if timestamp, err := strconv.ParseInt(s, 10, 64); err == nil {
+				// 判断是秒级还是毫秒级时间戳
+				if timestamp > 1e10 { // 毫秒级时间戳
+					t := time.Unix(timestamp/1000, (timestamp%1000)*1e6)
+					return &t, nil
+				} else { // 秒级时间戳
+					t := time.Unix(timestamp, 0)
+					return &t, nil
+				}
+			}
+
+			// 尝试各种时间格式
+			for _, format := range timeFormats {
+				if t, err := time.Parse(format, s); err == nil {
+					return &t, nil
+				}
+			}
+
+			// 尝试使用 time.Parse 的默认解析（支持更多格式）
+			if t, err := time.Parse(time.RFC3339, s); err == nil {
+				return &t, nil
+			}
+
+			// 尝试解析为 Unix 时间戳（浮点数）
+			if timestamp, err := strconv.ParseFloat(s, 64); err == nil {
+				// 判断是秒级还是毫秒级时间戳
+				if timestamp > 1e10 { // 毫秒级时间戳
+					sec := int64(timestamp / 1000)
+					nsec := int64((timestamp - float64(sec*1000)) * 1e6)
+					t := time.Unix(sec, nsec)
+					return &t, nil
+				} else { // 秒级时间戳
+					sec := int64(timestamp)
+					// 使用更精确的纳秒计算
+					fractional := timestamp - float64(sec)
+					nsec := int64(fractional * 1e9)
+					t := time.Unix(sec, nsec)
+					return &t, nil
+				}
+			}
+
+			return nil, fmt.Errorf("无法解析时间字符串: %s", s)
 		},
 	}
 }
