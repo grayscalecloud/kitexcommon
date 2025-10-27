@@ -66,6 +66,7 @@ func NewError(code EnumsType, message string) *BusinessError {
 		Code:    code,
 		Message: message,
 		Stack:   captureStack(2),
+		extra:   make(map[string]string),
 	}
 }
 
@@ -83,11 +84,22 @@ func Wrap(err error, code EnumsType, message string) *BusinessError {
 		return nil
 	}
 
+	extra := make(map[string]string)
+	// 如果原始错误是 BusinessError，保留其 extra 信息
+	var be *BusinessError
+	if errors.As(err, &be) && be.extra != nil {
+		for k, v := range be.extra {
+			extra[k] = v
+		}
+	}
+	msg := fmt.Sprintf("%s:\n %v", message, err)
+
 	return &BusinessError{
 		Code:    code,
-		Message: message,
+		Message: msg,
 		Cause:   err,
 		Stack:   captureStack(2),
+		extra:   extra,
 	}
 }
 
@@ -104,14 +116,21 @@ func WrapWithMessage(err error, message string) error {
 		return nil
 	}
 
-	// 如果是自定义错误，保留错误码
+	// 如果是自定义错误，保留错误码和额外信息
 	var e *BusinessError
 	if errors.As(err, &e) {
+		extra := make(map[string]string)
+		if e.extra != nil {
+			for k, v := range e.extra {
+				extra[k] = v
+			}
+		}
 		return &BusinessError{
 			Code:    e.Code,
 			Message: message,
 			Cause:   e.Cause,
-			Stack:   captureStack(2),
+			Stack:   e.Stack, // 保留原始堆栈
+			extra:   extra,   // 复制额外的错误信息
 		}
 	}
 
@@ -120,15 +139,25 @@ func WrapWithMessage(err error, message string) error {
 		Message: message,
 		Cause:   err,
 		Stack:   captureStack(2),
+		extra:   make(map[string]string),
 	}
 }
 
 // Error 实现error接口
 func (e *BusinessError) Error() string {
-	if e.Cause != nil {
-		return fmt.Sprintf("[%d] %s: %s", e.Code, e.Message, e.Cause.Error())
+	if e == nil {
+		return "<nil>"
 	}
-	return fmt.Sprintf("[%d] %s", e.Code, e.Message)
+
+	codeStr := "0"
+	if e.Code != nil {
+		codeStr = fmt.Sprintf("%d", e.Code.ToInt())
+	}
+
+	if e.Cause != nil {
+		return fmt.Sprintf("[BusinessError:%s] %s: %v", codeStr, e.Message, e.Cause)
+	}
+	return fmt.Sprintf("[BusinessError:%s] %s", codeStr, e.Message)
 }
 
 // Unwrap 获取原始错误
@@ -141,13 +170,21 @@ func (e *BusinessError) GetCode() int64 {
 	return e.Code.ToInt()
 }
 
+// BizStatusCode 获取业务错误状态码（用于RPC返回）
 func (e *BusinessError) BizStatusCode() int32 {
 	return int32(e.Code.ToInt())
 }
+
+// BizMessage 获取业务错误消息（用于RPC返回）
 func (e *BusinessError) BizMessage() string {
-	return e.Message
+	return "biz error: " + e.Message
 }
+
+// BizExtra 获取业务错误的额外信息（用于RPC返回）
 func (e *BusinessError) BizExtra() map[string]string {
+	if e.extra == nil {
+		return make(map[string]string)
+	}
 	return e.extra
 }
 
@@ -205,4 +242,94 @@ func IsBusinessError(err error) bool {
 	var businessError *BusinessError
 	ok := errors.As(err, &businessError)
 	return ok
+}
+
+// SetExtra 设置额外的错误信息
+//
+// 参数:
+//   - key: 键
+//   - value: 值
+func (e *BusinessError) SetExtra(key, value string) {
+	if e == nil {
+		return
+	}
+	if e.extra == nil {
+		e.extra = make(map[string]string)
+	}
+	e.extra[key] = value
+}
+
+// SetExtras 批量设置额外的错误信息
+//
+// 参数:
+//   - extras: 额外的错误信息映射
+func (e *BusinessError) SetExtras(extras map[string]string) {
+	if e == nil {
+		return
+	}
+	if e.extra == nil {
+		e.extra = make(map[string]string)
+	}
+	for k, v := range extras {
+		e.extra[k] = v
+	}
+}
+
+// GetExtra 获取额外的错误信息
+//
+// 参数:
+//   - key: 键
+//
+// 返回:
+//   - 值，如果不存在返回空字符串
+func (e *BusinessError) GetExtra(key string) string {
+	if e == nil || e.extra == nil {
+		return ""
+	}
+	return e.extra[key]
+}
+
+// FormatError 格式化完整的错误信息，包括堆栈
+//
+// 返回:
+//   - 包含堆栈信息的完整错误描述
+func (e *BusinessError) FormatError() string {
+	if e == nil {
+		return "<nil>"
+	}
+
+	var sb strings.Builder
+
+	// 错误基本信息
+	sb.WriteString(e.Error())
+
+	// 额外信息
+	if len(e.extra) > 0 {
+		sb.WriteString("\nExtra Info:")
+		for k, v := range e.extra {
+			sb.WriteString(fmt.Sprintf("\n  %s: %s", k, v))
+		}
+	}
+
+	// 堆栈信息
+	stackStr := e.FormatStack()
+	if stackStr != "" {
+		sb.WriteString("\n")
+		sb.WriteString(stackStr)
+	}
+
+	return sb.String()
+}
+
+// WithExtra 链式设置额外的错误信息
+//
+// 参数:
+//   - key: 键
+//   - value: 值
+//
+// 返回:
+//   - 错误本身，支持链式调用
+func (e *BusinessError) WithExtra(key, value string) *BusinessError {
+	e.SetExtra(key, value)
+	return e
 }
