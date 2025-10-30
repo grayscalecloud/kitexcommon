@@ -36,10 +36,13 @@ func InitTracing(serviceName string) {
 		exporter.Shutdown(context.Background()) //nolint:errcheck
 	})
 	processor := tracesdk.NewBatchSpanProcessor(exporter)
+	tenantIDProcessor := NewTenantIDProcessor(processor)
 	res, err := resource.New(context.Background(), resource.WithAttributes(semconv.ServiceNameKey.String(serviceName)))
 	if err != nil {
 		res = resource.Default()
 	}
-	TracerProvider = tracesdk.NewTracerProvider(tracesdk.WithSpanProcessor(processor), tracesdk.WithResource(res))
+	TracerProvider = tracesdk.NewTracerProvider(tracesdk.WithSpanProcessor(processor),
+		tracesdk.WithSpanProcessor(tenantIDProcessor),
+		tracesdk.WithResource(res))
 	otel.SetTracerProvider(TracerProvider)
 }
