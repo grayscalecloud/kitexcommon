@@ -16,12 +16,12 @@ func NewTenantIDProcessor(next trace.SpanProcessor) trace.SpanProcessor {
 }
 
 func (p *tenantIDProcessor) OnStart(ctx context.Context, s trace.ReadWriteSpan) {
-	if tid := ctxx.GetTenantID(ctx); tid != "" {
-		s.SetAttributes(attribute.String("tenant.id", tid))
-	}
-	if mid := ctxx.GetMerchantID(ctx); mid != "" {
-		s.SetAttributes(attribute.String("merchant.id", mid))
-	}
+	tid := ctxx.GetTenantID(ctx)
+	s.SetAttributes(attribute.String("tenant.id", tid))
+
+	mid := ctxx.GetMerchantID(ctx)
+	s.SetAttributes(attribute.String("merchant.id", mid))
+
 }
 
 func (p *tenantIDProcessor) Shutdown(ctx context.Context) error   { return p.next.Shutdown(ctx) }
