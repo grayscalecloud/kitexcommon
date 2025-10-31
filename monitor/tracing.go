@@ -17,6 +17,8 @@ package monitor
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
+	"unsafe"
 
 	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/server"
@@ -75,120 +77,106 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 
 	klog.Infof("开始向 TracerProvider 添加 TenantIDProcessor")
 
-	// 使用反射获取 TracerProvider 的 spanProcessors 字段
+	// 由于反射无法访问未导出字段，我们使用 unsafe 来访问
+	// 这是一个临时方案，可能在不同版本的 SDK 中失效
 	tpValue := reflect.ValueOf(sdkTp).Elem()
-	spanProcessorsField := tpValue.FieldByName("spanProcessors")
+	tpType := tpValue.Type()
 
-	if !spanProcessorsField.IsValid() {
+	// 查找 spanProcessors 字段的偏移量
+	var spanProcessorsOffset uintptr
+	for i := 0; i < tpType.NumField(); i++ {
+		field := tpType.Field(i)
+		if field.Name == "spanProcessors" {
+			spanProcessorsOffset = field.Offset
+			klog.Infof("找到 spanProcessors 字段，偏移量: %d, 类型: %s", spanProcessorsOffset, field.Type)
+			break
+		}
+	}
+
+	if spanProcessorsOffset == 0 {
 		klog.Errorf("无法找到 spanProcessors 字段")
 		return
 	}
 
-	klog.Infof("找到 spanProcessors 字段，类型: %s", spanProcessorsField.Type())
+	// 使用 unsafe 获取 spanProcessors 字段的值
+	tpPtr := unsafe.Pointer(tpValue.UnsafeAddr())
+	spanProcessorsPtr := (*unsafe.Pointer)(unsafe.Pointer(uintptr(tpPtr) + spanProcessorsOffset))
 
 	// spanProcessors 是 atomic.Pointer[spanProcessorStates]
-	// 我们需要获取原子指针的值
-	atomicPtr := spanProcessorsField.Interface()
-
-	// 使用反射调用 Load 方法获取指针值
-	loadMethod := reflect.ValueOf(atomicPtr).MethodByName("Load")
-	if !loadMethod.IsValid() {
-		klog.Errorf("atomic.Pointer 没有 Load 方法")
+	// 我们需要通过 atomic.LoadPointer 来获取值
+	atomicPtrValue := atomic.LoadPointer(spanProcessorsPtr)
+	if atomicPtrValue == nil {
+		klog.Errorf("spanProcessorStates 指针为空")
 		return
 	}
 
-	statesPtr := loadMethod.Call(nil)[0]
-	if statesPtr.IsNil() {
+	// atomicPtrValue 是 unsafe.Pointer，指向 spanProcessorStates
+	statesPtrUnsafe := unsafe.Pointer(atomicPtrValue)
+	if statesPtrUnsafe == nil {
 		klog.Errorf("spanProcessorStates 指针为空")
 		return
 	}
 
 	klog.Infof("获取到 spanProcessorStates 指针")
 
-	// 获取 spanProcessorStates 结构的值
-	statesValue := statesPtr.Elem()
-	statesType := statesValue.Type()
-
-	// 打印 spanProcessorStates 的所有字段
-	klog.Infof("spanProcessorStates 类型: %s", statesType.Name())
-	for i := 0; i < statesType.NumField(); i++ {
-		field := statesType.Field(i)
-		fieldValue := statesValue.Field(i)
-		klog.Infof("  字段: %s, 类型: %s, 值类型: %T", field.Name, field.Type, fieldValue.Interface())
-	}
-
-	// 尝试找到 processors 字段（可能是 slice 或其他结构）
-	processorsField := statesValue.FieldByName("processors")
-	if !processorsField.IsValid() {
-		// 可能字段名不同，尝试查找 slice 类型的字段
-		for i := 0; i < statesType.NumField(); i++ {
-			field := statesType.Field(i)
-			fieldValue := statesValue.Field(i)
-			fieldType := field.Type
-
-			// 检查是否是 slice 类型
-			if fieldType.Kind() == reflect.Slice {
-				klog.Infof("找到 slice 字段: %s, 类型: %s", field.Name, fieldType)
-				processorsSlice := fieldValue.Interface()
-
-				if slice, ok := processorsSlice.([]tracesdk.SpanProcessor); ok {
-					klog.Infof("找到 %d 个 processors", len(slice))
-
-					if len(slice) > 0 {
-						// 包装第一个 processor
-						firstProcessor := slice[0]
-						klog.Infof("包装第一个 processor: %T", firstProcessor)
-						tenantProcessor := NewTenantIDProcessor(firstProcessor)
-
-						// 创建新的 processors slice，包含我们的 processor
-						newSlice := append([]tracesdk.SpanProcessor{tenantProcessor}, slice[1:]...)
-
-						// 使用反射设置字段值
-						fieldValue.Set(reflect.ValueOf(newSlice))
-
-						// 使用原子操作更新指针（这需要创建新的 spanProcessorStates）
-						// 由于这是复杂的原子操作，我们可以尝试直接修改 slice
-						// 但更好的方法是创建一个新的 spanProcessorStates 并原子地更新
-						klog.Infof("成功修改 processors slice")
-					}
-				}
-			}
-		}
-		klog.Errorf("无法在 spanProcessorStates 中找到 processors 字段")
+	// 获取 spanProcessorStates 的类型（tpType 已经在前面定义）
+	spanProcessorsField, found := tpType.FieldByName("spanProcessors")
+	if !found {
+		klog.Errorf("无法找到 spanProcessors 字段类型")
 		return
 	}
 
-	// 如果找到了 processors 字段
-	processors := processorsField.Interface()
-	klog.Infof("当前 processors 类型: %T", processors)
+	// spanProcessors 是 atomic.Pointer[spanProcessorStates]
+	// 需要获取内部类型（spanProcessorStates）
+	spanProcessorStatesType := spanProcessorsField.Type.Elem().Elem()
 
-	if processorsSlice, ok := processors.([]tracesdk.SpanProcessor); ok {
-		klog.Infof("找到 %d 个 processors", len(processorsSlice))
+	// 将 unsafe.Pointer 转换为 reflect.Value
+	statesValue := reflect.NewAt(spanProcessorStatesType, statesPtrUnsafe).Elem()
 
-		if len(processorsSlice) > 0 {
-			// 包装第一个 processor
-			firstProcessor := processorsSlice[0]
-			klog.Infof("包装第一个 processor: %T", firstProcessor)
-			tenantProcessor := NewTenantIDProcessor(firstProcessor)
+	statesType := statesValue.Type()
+	klog.Infof("spanProcessorStates 类型: %s", statesType.Name())
 
-			// 创建新的 processors slice
-			newSlice := append([]tracesdk.SpanProcessor{tenantProcessor}, processorsSlice[1:]...)
+	// 查找 processors slice 字段
+	var processorsOffset uintptr
+	for i := 0; i < statesType.NumField(); i++ {
+		field := statesType.Field(i)
+		if field.Type.Kind() == reflect.Slice {
+			klog.Infof("找到 slice 字段: %s, 类型: %s, 偏移量: %d", field.Name, field.Type, field.Offset)
+			processorsOffset = field.Offset
 
-			// 设置新的 slice
-			processorsField.Set(reflect.ValueOf(newSlice))
+			// 检查是否是 []SpanProcessor 类型
+			if field.Type.Elem().Name() == "SpanProcessor" || field.Type.String() == "[]trace.SpanProcessor" {
+				klog.Infof("这是 processors slice 字段")
 
-			klog.Infof("成功修改 processors，现在需要原子地更新 spanProcessors")
+				// 使用 unsafe 获取 slice
+				statesPtr := unsafe.Pointer(statesValue.UnsafeAddr())
+				slicePtr := (*reflect.SliceHeader)(unsafe.Pointer(uintptr(statesPtr) + processorsOffset))
 
-			// 使用原子操作更新 spanProcessors（Store 方法）
-			storeMethod := reflect.ValueOf(atomicPtr).MethodByName("Store")
-			if storeMethod.IsValid() {
-				storeMethod.Call([]reflect.Value{statesPtr})
-				klog.Infof("成功通过原子操作更新 spanProcessors")
-			} else {
-				klog.Warnf("atomic.Pointer 没有 Store 方法，可能需要其他方式更新")
+				// 将 SliceHeader 转换为 []SpanProcessor
+				slice := *(*[]tracesdk.SpanProcessor)(unsafe.Pointer(slicePtr))
+				klog.Infof("找到 %d 个 processors", len(slice))
+
+				if len(slice) > 0 {
+					// 包装第一个 processor
+					firstProcessor := slice[0]
+					klog.Infof("包装第一个 processor: %T", firstProcessor)
+					tenantProcessor := NewTenantIDProcessor(firstProcessor)
+
+					// 创建新的 slice，包含我们的 processor
+					newSlice := append([]tracesdk.SpanProcessor{tenantProcessor}, slice[1:]...)
+
+					// 使用 unsafe 更新 slice
+					newSliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&newSlice))
+					slicePtr.Data = newSliceHeader.Data
+					slicePtr.Len = newSliceHeader.Len
+					slicePtr.Cap = newSliceHeader.Cap
+
+					klog.Infof("成功更新 processors slice，新长度: %d", len(newSlice))
+				}
+				return
 			}
 		}
-	} else {
-		klog.Errorf("processors 不是 []SpanProcessor 类型，实际类型: %T", processors)
 	}
+
+	klog.Errorf("无法在 spanProcessorStates 中找到 processors slice 字段")
 }
