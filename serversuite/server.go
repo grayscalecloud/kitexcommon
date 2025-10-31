@@ -56,9 +56,6 @@ func (s CommonServerSuite) Options() []server.Option {
 		provider.WithInsecure(),
 	)
 
-	// 添加 TenantIDProcessor 到全局 TracerProvider
-	monitor.AddTenantIDProcessorToGlobalTracerProvider()
-
 	// 注册关闭钩子
 	server.RegisterShutdownHook(func() {
 		if err := p.Shutdown(context.Background()); err != nil {
@@ -73,6 +70,7 @@ func (s CommonServerSuite) Options() []server.Option {
 		server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),
+		server.WithMiddleware(monitor.TenantIDMiddleware), // 添加 TenantID middleware
 		server.WithSuite(tracing.NewServerSuite()),
 		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 			prometheus.WithDisableServer(true),

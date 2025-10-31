@@ -170,6 +170,7 @@ func (s NacosServerSuite) setupTracing() []server.Option {
 	}
 
 	return []server.Option{
+		server.WithMiddleware(monitor.TenantIDMiddleware), // 添加 TenantID middleware
 		server.WithSuite(tracing.NewServerSuite()),
 		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 			prometheus.WithDisableServer(true),

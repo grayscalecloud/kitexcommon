@@ -72,6 +72,7 @@ func (s ConsulServerSuite) Options() []server.Option {
 	)
 	if s.EnableTracing {
 		opts = append(opts,
+			server.WithMiddleware(monitor.TenantIDMiddleware), // 添加 TenantID middleware
 			server.WithSuite(tracing.NewServerSuite()),
 			server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 				prometheus.WithDisableServer(true),
