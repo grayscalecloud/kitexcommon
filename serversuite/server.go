@@ -56,6 +56,9 @@ func (s CommonServerSuite) Options() []server.Option {
 		provider.WithInsecure(),
 	)
 
+	// 添加 TenantIDProcessor 到全局 TracerProvider
+	monitor.AddTenantIDProcessorToGlobalTracerProvider()
+
 	// 注册关闭钩子
 	server.RegisterShutdownHook(func() {
 		if err := p.Shutdown(context.Background()); err != nil {
