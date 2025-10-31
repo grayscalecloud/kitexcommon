@@ -19,6 +19,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/cloudwego/kitex/pkg/klog"
 	"github.com/cloudwego/kitex/server"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -62,27 +63,53 @@ func InitTracing(serviceName string) {
 func AddTenantIDProcessorToGlobalTracerProvider() {
 	tp := otel.GetTracerProvider()
 	if tp == nil {
-		// 如果没有全局 TracerProvider，说明 Kitex 的 provider 还没有创建
+		klog.Errorf("全局 TracerProvider 为空，Kitex 的 provider 可能还没有创建")
 		return
 	}
 
 	// 检查是否是 TracerProvider 类型
 	sdkTp, ok := tp.(*tracesdk.TracerProvider)
 	if !ok {
-		// 如果不是 SDK 的 TracerProvider，无法添加 processor
+		klog.Errorf("全局 TracerProvider 不是 *tracesdk.TracerProvider 类型，实际类型: %T", tp)
 		return
 	}
 
+	klog.Infof("开始向 TracerProvider 添加 TenantIDProcessor")
+
 	// 使用反射获取 TracerProvider 的 processors 字段
-	// 注意：这是通过反射访问私有字段，可能在不同版本的 SDK 中失效
 	tpValue := reflect.ValueOf(sdkTp).Elem()
+	tpType := tpValue.Type()
+
+	// 打印所有字段用于调试
+	klog.Infof("TracerProvider 类型: %s", tpType.Name())
+	for i := 0; i < tpType.NumField(); i++ {
+		field := tpType.Field(i)
+		klog.Infof("  字段: %s, 类型: %s, 可设置: %v", field.Name, field.Type, tpValue.Field(i).CanSet())
+	}
+
+	// 尝试不同的字段名
 	processorsField := tpValue.FieldByName("processors")
-	if !processorsField.IsValid() || !processorsField.CanSet() {
-		// 如果无法访问或设置 processors 字段，尝试使用 syncMap 字段
-		// OpenTelemetry SDK 可能使用 sync.Map 来存储 processors
-		syncMapField := tpValue.FieldByName("processors")
-		if syncMapField.IsValid() {
-			// 尝试通过 sync.Map 添加 processor（这更复杂，需要根据实际 SDK 版本调整）
+	if !processorsField.IsValid() {
+		// 尝试其他可能的字段名
+		processorsField = tpValue.FieldByName("mu")
+		if processorsField.IsValid() {
+			klog.Infof("找到 mu 字段，尝试查找 processors")
+			// OpenTelemetry SDK v1.0+ 可能使用不同的结构
+			// 尝试通过其他方式添加 processor
+		}
+		klog.Errorf("无法找到 processors 字段")
+		return
+	}
+
+	if !processorsField.CanSet() {
+		klog.Errorf("processors 字段不可设置，尝试其他方法")
+		// 尝试使用 RegisterSpanProcessor 方法（如果存在）
+		registerMethod := reflect.ValueOf(sdkTp).MethodByName("RegisterSpanProcessor")
+		if registerMethod.IsValid() {
+			klog.Infof("找到 RegisterSpanProcessor 方法，尝试调用")
+			tenantProcessor := NewTenantIDProcessor(nil)
+			registerMethod.Call([]reflect.Value{reflect.ValueOf(tenantProcessor)})
+			klog.Infof("成功通过 RegisterSpanProcessor 方法添加 processor")
 			return
 		}
 		return
@@ -90,9 +117,11 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 
 	// 获取当前的 processors
 	processors := processorsField.Interface()
+	klog.Infof("当前 processors 类型: %T", processors)
 
 	// 尝试将其转换为 sync.Map（OpenTelemetry SDK v1.0+ 使用 sync.Map）
 	if syncMap, ok := processors.(*sync.Map); ok {
+		klog.Infof("processors 是 sync.Map 类型，尝试添加 processor")
 		// 遍历 sync.Map，找到第一个 processor 并包装它
 		var firstProcessor tracesdk.SpanProcessor
 		syncMap.Range(func(key, value interface{}) bool {
@@ -100,6 +129,7 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 				// 检查是否已经是我们的 processor
 				if _, isTenantProcessor := p.(*tenantIDProcessor); !isTenantProcessor {
 					firstProcessor = p
+					klog.Infof("找到第一个 processor: %T", p)
 					return false // 停止遍历
 				}
 			}
@@ -109,7 +139,20 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 		if firstProcessor != nil {
 			// 包装第一个 processor
 			tenantProcessor := NewTenantIDProcessor(firstProcessor)
-			syncMap.Store("tenantIDProcessor", tenantProcessor)
+			// 注意：sync.Map 的 key 不是简单的字符串，需要获取正确的 key
+			// 这里我们需要删除旧的 processor 并添加新的
+			// 但这可能比较复杂，让我们先尝试直接添加
+			syncMap.Range(func(key, value interface{}) bool {
+				if value == firstProcessor {
+					syncMap.Delete(key)
+					syncMap.Store(key, tenantProcessor)
+					klog.Infof("成功替换 processor")
+					return false
+				}
+				return true
+			})
+		} else {
+			klog.Errorf("未找到可包装的 processor")
 		}
 		return
 	}
@@ -117,8 +160,11 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 	// 如果不是 sync.Map，尝试作为 slice
 	processorsSlice, ok := processors.([]tracesdk.SpanProcessor)
 	if !ok {
+		klog.Errorf("processors 既不是 sync.Map 也不是 slice，类型: %T", processors)
 		return
 	}
+
+	klog.Infof("找到 %d 个 processors", len(processorsSlice))
 
 	// 检查是否已经添加了我们的 processor
 	hasTenantProcessor := false
@@ -133,9 +179,15 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 	if !hasTenantProcessor && len(processorsSlice) > 0 {
 		// 包装第一个 processor，在其之前执行我们的逻辑
 		firstProcessor := processorsSlice[0]
+		klog.Infof("包装第一个 processor: %T", firstProcessor)
 		tenantProcessor := NewTenantIDProcessor(firstProcessor)
 		// 通过反射设置 processors 字段
 		newProcessors := append([]tracesdk.SpanProcessor{tenantProcessor}, processorsSlice[1:]...)
 		processorsField.Set(reflect.ValueOf(newProcessors))
+		klog.Infof("成功添加 TenantIDProcessor 到 TracerProvider")
+	} else if hasTenantProcessor {
+		klog.Infof("TenantIDProcessor 已经存在")
+	} else {
+		klog.Errorf("没有找到任何 processor 可以包装")
 	}
 }
