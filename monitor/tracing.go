@@ -202,11 +202,23 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 	// 2. 在 span 创建时通过其他方式（如 middleware）添加属性
 	// 3. 或者，在创建 span 时手动添加 tenantID
 
-	// 由于 atomic.Pointer 类型限制和未导出字段访问限制，无法直接修改 processor 链
-	// 改用更简单且可靠的方法：在 span 创建时通过 OpenTelemetry 的 API 添加属性
-	// 我们将在每次创建 span 时检查 context 中的 tenantID 并添加
+	// 由于 atomic.Pointer 类型限制，无法通过反射修改 processor 链
+	// 改用更直接的方法：用我们包含 TenantIDProcessor 的 TracerProvider 替换 Kitex 创建的
+	// 这样可以确保 TenantIDProcessor 生效
 	klog.Warnf("由于 atomic.Pointer 类型限制，无法直接修改 processor 链")
-	klog.Infof("已启用替代方案：通过 span 事件添加 tenantID（如果 context 中有值）")
+	klog.Infof("尝试用我们包含 TenantIDProcessor 的 TracerProvider 替换 Kitex 创建的 TracerProvider")
+
+	// 如果之前已经通过 SetupTracerProviderWithTenantID 设置了 TracerProvider
+	// 并且它包含了我们的 processor，直接使用它替换当前的
+	if TracerProvider != nil {
+		// 检查 TracerProvider 是否包含我们的 processor
+		// 由于我们无法直接检查，我们假设 SetupTracerProviderWithTenantID 已经正确设置了
+		otel.SetTracerProvider(TracerProvider)
+		klog.Infof("已用我们包含 TenantIDProcessor 的 TracerProvider 替换全局 TracerProvider")
+		return
+	}
+
+	klog.Warnf("没有预先设置的 TracerProvider，无法替换")
 }
 
 // AddTenantIDToSpan 从 context 中获取 tenantID 并添加到 span 的属性中
