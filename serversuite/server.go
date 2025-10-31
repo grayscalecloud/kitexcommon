@@ -47,6 +47,9 @@ func (s CommonServerSuite) Options() []server.Option {
 
 	// ... consul 配置代码 ...
 
+	// **关键：在 Kitex provider 创建之前，先设置包含 TenantIDProcessor 的 TracerProvider**
+	monitor.SetupTracerProviderWithTenantID(s.CurrentServiceName, s.OtelEndpoint)
+
 	// 初始化 OpenTelemetry Provider
 	p := provider.NewOpenTelemetryProvider(
 		provider.WithServiceName(s.CurrentServiceName), // 添加服务名
@@ -55,6 +58,9 @@ func (s CommonServerSuite) Options() []server.Option {
 		provider.WithEnableTracing(true),
 		provider.WithInsecure(),
 	)
+
+	// 如果 Kitex 的 provider 覆盖了我们的 TracerProvider，尝试添加 processor
+	monitor.AddTenantIDProcessorToGlobalTracerProvider()
 
 	// 注册关闭钩子
 	server.RegisterShutdownHook(func() {
@@ -70,7 +76,6 @@ func (s CommonServerSuite) Options() []server.Option {
 		server.WithServerBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),
-		server.WithMiddleware(monitor.TenantIDMiddleware), // 添加 TenantID middleware
 		server.WithSuite(tracing.NewServerSuite()),
 		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 			prometheus.WithDisableServer(true),

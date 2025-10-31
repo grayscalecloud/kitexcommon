@@ -139,6 +139,12 @@ func (s NacosServerSuite) setupOpenTelemetry() ([]server.Option, error) {
 		return nil, nil
 	}
 
+	// **关键：在 Kitex provider 创建之前，先设置包含 TenantIDProcessor 的 TracerProvider**
+	// 这样 Kitex 的 provider 可能会使用已存在的全局 TracerProvider，或者我们的 processor 会被包含
+	monitor.SetupTracerProviderWithTenantID(s.CurrentServiceName, s.Monitor.OTel.Endpoint)
+
+	// 然后创建 Kitex 的 provider
+	// 注意：如果 Kitex 的 provider 会创建新的 TracerProvider，我们需要在创建后再次尝试添加 processor
 	p := provider.NewOpenTelemetryProvider(
 		provider.WithServiceName(s.CurrentServiceName),
 		provider.WithExportEndpoint(s.Monitor.OTel.Endpoint),
@@ -147,7 +153,7 @@ func (s NacosServerSuite) setupOpenTelemetry() ([]server.Option, error) {
 		provider.WithInsecure(),
 	)
 
-	// 添加 TenantIDProcessor 到全局 TracerProvider
+	// 如果 Kitex 的 provider 覆盖了我们的 TracerProvider，尝试添加 processor
 	monitor.AddTenantIDProcessorToGlobalTracerProvider()
 
 	// 注册关闭钩子
@@ -170,7 +176,6 @@ func (s NacosServerSuite) setupTracing() []server.Option {
 	}
 
 	return []server.Option{
-		server.WithMiddleware(monitor.TenantIDMiddleware), // 添加 TenantID middleware
 		server.WithSuite(tracing.NewServerSuite()),
 		server.WithTracer(prometheus.NewServerTracer(s.CurrentServiceName, "",
 			prometheus.WithDisableServer(true),

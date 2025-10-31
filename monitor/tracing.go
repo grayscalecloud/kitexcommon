@@ -17,6 +17,7 @@ package monitor
 import (
 	"context"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 
@@ -35,7 +36,7 @@ import (
 var TracerProvider *tracesdk.TracerProvider
 
 // InitTracing 初始化追踪（已废弃，因为 Kitex 的 provider 会创建自己的 TracerProvider）
-// 建议使用 AddTenantIDProcessorToGlobalTracerProvider 在 Kitex provider 创建之后调用
+// 建议使用 SetupTracerProviderWithTenantID 在 Kitex provider 创建之前调用
 func InitTracing(serviceName string) {
 	exporter, err := otlptracegrpc.New(context.Background())
 	if err != nil {
@@ -54,6 +55,73 @@ func InitTracing(serviceName string) {
 		tracesdk.WithSpanProcessor(tProcessor),
 		tracesdk.WithResource(res))
 	otel.SetTracerProvider(TracerProvider)
+}
+
+// SetupTracerProviderWithTenantID 在 Kitex provider 创建之前设置包含 TenantIDProcessor 的 TracerProvider
+// 这个方法应该在 Kitex 的 provider.NewOpenTelemetryProvider 调用之前执行
+// 这样 Kitex 的 provider 可能会使用已经存在的全局 TracerProvider
+func SetupTracerProviderWithTenantID(serviceName, otelEndpoint string) {
+	klog.Infof("SetupTracerProviderWithTenantID: 开始设置包含 TenantIDProcessor 的 TracerProvider，endpoint: %s", otelEndpoint)
+
+	// 处理 endpoint 格式：如果包含 http:// 或 https://，需要提取 host:port
+	// otlptracegrpc.WithEndpoint 需要 host:port 格式
+	endpoint := otelEndpoint
+	if strings.HasPrefix(endpoint, "http://") {
+		endpoint = strings.TrimPrefix(endpoint, "http://")
+	} else if strings.HasPrefix(endpoint, "https://") {
+		endpoint = strings.TrimPrefix(endpoint, "https://")
+	}
+	// 移除路径部分（如果有）
+	if idx := strings.Index(endpoint, "/"); idx != -1 {
+		endpoint = endpoint[:idx]
+	}
+
+	klog.Infof("SetupTracerProviderWithTenantID: 处理后的 endpoint: %s", endpoint)
+
+	// 创建 exporter
+	exporter, err := otlptracegrpc.New(
+		context.Background(),
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithInsecure(),
+	)
+	if err != nil {
+		klog.Errorf("创建 OTLP exporter 失败: %v", err)
+		return
+	}
+
+	// 注册关闭钩子
+	server.RegisterShutdownHook(func() {
+		if err := exporter.Shutdown(context.Background()); err != nil {
+			klog.Errorf("关闭 exporter 失败: %v", err)
+		}
+	})
+
+	// 创建 BatchSpanProcessor
+	batchProcessor := tracesdk.NewBatchSpanProcessor(exporter)
+
+	// 包装 BatchSpanProcessor，添加我们的 TenantIDProcessor
+	tenantProcessor := NewTenantIDProcessor(batchProcessor)
+
+	// 创建 resource
+	res, err := resource.New(
+		context.Background(),
+		resource.WithAttributes(semconv.ServiceNameKey.String(serviceName)),
+	)
+	if err != nil {
+		klog.Warnf("创建 resource 失败，使用默认 resource: %v", err)
+		res = resource.Default()
+	}
+
+	// 创建 TracerProvider，包含我们的 processor
+	TracerProvider = tracesdk.NewTracerProvider(
+		tracesdk.WithSpanProcessor(tenantProcessor),
+		tracesdk.WithResource(res),
+	)
+
+	// 设置为全局 TracerProvider
+	otel.SetTracerProvider(TracerProvider)
+
+	klog.Infof("SetupTracerProviderWithTenantID: 成功设置 TracerProvider，包含 TenantIDProcessor")
 }
 
 // AddTenantIDProcessorToGlobalTracerProvider 向全局 TracerProvider 添加 TenantIDProcessor

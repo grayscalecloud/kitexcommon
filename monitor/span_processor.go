@@ -17,21 +17,27 @@ func NewTenantIDProcessor(next trace.SpanProcessor) trace.SpanProcessor {
 
 func (p *tenantIDProcessor) OnStart(ctx context.Context, s trace.ReadWriteSpan) {
 	// 测试用固定值，验证 processor 是否被执行
+	// 这个标记应该始终出现在所有 span 的 tags 中
 	s.SetAttributes(attribute.String("processor.test", "executed"))
 
-	// 只有在 tenantID 不为空时才设置属性，避免设置空字符串
-	if tid := ctxx.GetTenantID(ctx); tid != "" {
+	// 尝试从 context 中获取 tenantID 和 merchantID
+	// 注意：此时 context 应该已经包含从 metainfo 传递过来的值
+	tid := ctxx.GetTenantID(ctx)
+	mid := ctxx.GetMerchantID(ctx)
+
+	// 添加 tenantID
+	if tid != "" {
 		s.SetAttributes(attribute.String("tenant.id", tid))
 	} else {
-		// 测试用：即使 tenantID 为空，也设置一个标记
+		// 测试用：即使 tenantID 为空，也设置一个标记，用于调试
 		s.SetAttributes(attribute.String("tenant.id.status", "not_found_in_context"))
 	}
 
-	// 只有在 merchantID 不为空时才设置属性，避免设置空字符串
-	if mid := ctxx.GetMerchantID(ctx); mid != "" {
+	// 添加 merchantID
+	if mid != "" {
 		s.SetAttributes(attribute.String("merchant.id", mid))
 	} else {
-		// 测试用：即使 merchantID 为空，也设置一个标记
+		// 测试用：即使 merchantID 为空，也设置一个标记，用于调试
 		s.SetAttributes(attribute.String("merchant.id.status", "not_found_in_context"))
 	}
 }
