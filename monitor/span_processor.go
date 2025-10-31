@@ -19,6 +19,7 @@ func (p *tenantIDProcessor) OnStart(ctx context.Context, s trace.ReadWriteSpan) 
 	// 从 context 中获取 tenantID 和 merchantID
 	tid := ctxx.GetTenantID(ctx)
 	mid := ctxx.GetMerchantID(ctx)
+	uid := ctxx.GetUserID(ctx)
 
 	// 添加 tenantID
 	if tid != "" {
@@ -35,6 +36,7 @@ func (p *tenantIDProcessor) OnStart(ctx context.Context, s trace.ReadWriteSpan) 
 		// 测试用：即使 merchantID 为空，也设置一个标记，用于调试
 		s.SetAttributes(attribute.String("merchant.id.status", "没有商户信息"))
 	}
+	s.SetAttributes(attribute.String("user.id", uid))
 }
 
 func (p *tenantIDProcessor) Shutdown(ctx context.Context) error   { return p.next.Shutdown(ctx) }
