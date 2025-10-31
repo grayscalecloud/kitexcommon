@@ -146,23 +146,35 @@ func AddTenantIDProcessorToGlobalTracerProvider() {
 func AddTenantIDToSpan(ctx context.Context) {
 	span := trace.SpanFromContext(ctx)
 	if !span.IsRecording() {
+		klog.CtxWarnf(ctx, "AddTenantIDToSpan: span 未在记录中")
 		return
 	}
 
+	klog.CtxInfof(ctx, "AddTenantIDToSpan: 开始添加属性")
+
 	// 添加测试标记
 	span.SetAttributes(attribute.String("processor.method", "AddTenantIDToSpan"))
+	klog.CtxInfof(ctx, "AddTenantIDToSpan: 已添加 processor.method 标记")
 
 	// 添加 tenantID
-	if tid := ctxx.GetTenantID(ctx); tid != "" {
+	tid := ctxx.GetTenantID(ctx)
+	if tid != "" {
 		span.SetAttributes(attribute.String("tenant.id", tid))
+		klog.CtxInfof(ctx, "AddTenantIDToSpan: 已添加 tenant.id = %s", tid)
 	} else {
 		span.SetAttributes(attribute.String("tenant.id.status", "not_found_in_context"))
+		klog.CtxWarnf(ctx, "AddTenantIDToSpan: tenantID 未找到")
 	}
 
 	// 添加 merchantID
-	if mid := ctxx.GetMerchantID(ctx); mid != "" {
+	mid := ctxx.GetMerchantID(ctx)
+	if mid != "" {
 		span.SetAttributes(attribute.String("merchant.id", mid))
+		klog.CtxInfof(ctx, "AddTenantIDToSpan: 已添加 merchant.id = %s", mid)
 	} else {
 		span.SetAttributes(attribute.String("merchant.id.status", "not_found_in_context"))
+		klog.CtxWarnf(ctx, "AddTenantIDToSpan: merchantID 未找到")
 	}
+
+	klog.CtxInfof(ctx, "AddTenantIDToSpan: 完成")
 }
