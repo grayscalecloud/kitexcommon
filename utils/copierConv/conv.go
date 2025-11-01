@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jinzhu/copier"
+	"github.com/shopspring/decimal"
 )
 
 // GetTimeToUnixConverter 返回一个类型转换器，用于将 time.Time 转换为 Unix 时间戳（秒）
@@ -477,6 +478,41 @@ func GetStringToTimePtrConverter() copier.TypeConverter {
 			}
 
 			return nil, fmt.Errorf("无法解析时间字符串: %s", s)
+		},
+	}
+}
+
+// GetFloat64ToDecimalConverter 返回一个类型转换器，用于将float64类型转换为decimal.Decimal类型
+// 该转换器将float64数值转换为decimal.Decimal对象，用于高精度小数计算
+// 注意：decimal.Decimal可以避免浮点数精度丢失问题
+func GetFloat64ToDecimalConverter() copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: float64(0),
+		DstType: decimal.Decimal{},
+		Fn: func(src interface{}) (interface{}, error) {
+			f, ok := src.(float64)
+			if !ok {
+				return nil, errors.New("源类型不匹配")
+			}
+			return decimal.NewFromFloat(f), nil
+		},
+	}
+}
+
+// GetDecimalToFloat64Converter 返回一个类型转换器，用于将 decimal.Decimal 转换为 float64
+// 该转换器将 decimal.Decimal 对象转换为 float64 类型
+// 注意：从高精度类型转换为float64可能会存在精度损失
+func GetDecimalToFloat64Converter() copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: decimal.Decimal{},
+		DstType: float64(0),
+		Fn: func(src interface{}) (interface{}, error) {
+			d, ok := src.(decimal.Decimal)
+			if !ok {
+				return nil, errors.New("源类型不匹配")
+			}
+			f, _ := d.Float64()
+			return f, nil
 		},
 	}
 }

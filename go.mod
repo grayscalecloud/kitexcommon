@@ -15,6 +15,7 @@ require (
 	github.com/kitex-contrib/registry-nacos v0.1.3
 	github.com/nacos-group/nacos-sdk-go v1.1.5
 	github.com/prometheus/client_golang v1.20.4
+	github.com/shopspring/decimal v1.4.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.25.0
 	go.opentelemetry.io/otel/sdk v1.38.0
