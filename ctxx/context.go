@@ -30,6 +30,9 @@ func SetMetaInfo(ctx context.Context, key string, value string) context.Context 
 	case DonorKey:
 		ctx = metainfo.WithValue(ctx, DonorKey, value)
 		return context.WithValue(ctx, donorIDKey{}, value)
+	case AppTypeKey:
+		ctx = metainfo.WithValue(ctx, AppTypeKey, value)
+		return context.WithValue(ctx, appTypeKey{}, value)
 	default:
 		// 对于其他 key，只设置到 metainfo 中
 		return ctx
@@ -80,6 +83,13 @@ func GetMetaInfo(ctx context.Context, key string) string {
 		}
 	case DonorKey:
 		if value, ok := ctx.Value(donorIDKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case AppTypeKey:
+		if value, ok := ctx.Value(appTypeKey{}).(string); ok {
 			if value == "" {
 				return ""
 			}
@@ -171,6 +181,16 @@ func GetDonorID(ctx context.Context) string {
 	return GetMetaInfo(ctx, DonorKey)
 }
 
+// WithAppType adds app type to the context
+func WithAppType(ctx context.Context, appType string) context.Context {
+	return SetMetaInfo(ctx, AppTypeKey, appType)
+}
+
+// GetAppType retrieves app type from the context
+func GetAppType(ctx context.Context) string {
+	return GetMetaInfo(ctx, AppTypeKey)
+}
+
 // WithTenantIsolation enables or disables tenant isolation for the context
 func WithTenantIsolation(ctx context.Context, enabled bool) context.Context {
 	enabledStr := "true"
@@ -226,6 +246,7 @@ func GetContextInfo(ctx context.Context) *ContextInfo {
 		MerchantID: GetMerchantID(ctx),
 		MemberID:   GetMemberID(ctx),
 		DonorID:    GetDonorID(ctx),
+		AppType:    GetAppType(ctx),
 	}
 }
 
@@ -234,7 +255,7 @@ func GetAllMetaInfo(ctx context.Context) map[string]string {
 	result := make(map[string]string)
 
 	// 获取所有预定义的键
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey}
+	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey}
 	for _, key := range keys {
 		if value := GetMetaInfo(ctx, key); value != "" {
 			result[key] = value
@@ -254,7 +275,7 @@ func SetMultipleMetaInfo(ctx context.Context, values map[string]string) context.
 
 // CopyMetaInfo 从源 context 复制 metainfo 到目标 context
 func CopyMetaInfo(fromCtx, toCtx context.Context) context.Context {
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey}
+	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey}
 	for _, key := range keys {
 		if value := GetMetaInfo(fromCtx, key); value != "" {
 			toCtx = SetMetaInfo(toCtx, key, value)

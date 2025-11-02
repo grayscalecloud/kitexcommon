@@ -10,6 +10,7 @@ type (
 	merchantIsolationKey struct{}
 	memberIDKey          struct{}
 	donorIDKey           struct{}
+	appTypeKey           struct{}
 )
 
 const (
@@ -23,4 +24,13 @@ const (
 	MerchantIsolationKey = "merchant_isolation"
 	MemberKey            = "member_id"
 	DonorKey             = "donor_id"
+	AppTypeKey           = "app_type"
+
+	// app type
+	AppMerchant = "merchant"
+	AppMember   = "member"
+	AppDonor    = "donor"
+	AppAdmin    = "admin"
+	AppPlatform = "platform"
+	AppCallback = "callback"
 )

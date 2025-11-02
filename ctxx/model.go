@@ -8,4 +8,5 @@ type ContextInfo struct {
 	MerchantID string
 	MemberID   string
 	DonorID    string
+	AppType    string
 }
