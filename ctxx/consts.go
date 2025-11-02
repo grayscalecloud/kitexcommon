@@ -8,6 +8,8 @@ type (
 	merchantIDKey        struct{}
 	tenantIsolationKey   struct{}
 	merchantIsolationKey struct{}
+	memberIDKey          struct{}
+	donorIDKey           struct{}
 )
 
 const (
@@ -19,4 +21,6 @@ const (
 	MerchantKey          = "merchant_id"
 	TenantIsolationKey   = "tenant_isolation"
 	MerchantIsolationKey = "merchant_isolation"
+	MemberKey            = "member_id"
+	DonorKey             = "donor_id"
 )

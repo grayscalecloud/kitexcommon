@@ -24,6 +24,12 @@ func SetMetaInfo(ctx context.Context, key string, value string) context.Context 
 	case MerchantKey:
 		ctx = metainfo.WithValue(ctx, MerchantKey, value)
 		return context.WithValue(ctx, merchantIDKey{}, value)
+	case MemberKey:
+		ctx = metainfo.WithValue(ctx, MemberKey, value)
+		return context.WithValue(ctx, memberIDKey{}, value)
+	case DonorKey:
+		ctx = metainfo.WithValue(ctx, DonorKey, value)
+		return context.WithValue(ctx, donorIDKey{}, value)
 	default:
 		// 对于其他 key，只设置到 metainfo 中
 		return ctx
@@ -60,6 +66,20 @@ func GetMetaInfo(ctx context.Context, key string) string {
 		}
 	case MerchantKey:
 		if value, ok := ctx.Value(merchantIDKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case MemberKey:
+		if value, ok := ctx.Value(memberIDKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case DonorKey:
+		if value, ok := ctx.Value(donorIDKey{}).(string); ok {
 			if value == "" {
 				return ""
 			}
@@ -131,6 +151,26 @@ func GetMerchantID(ctx context.Context) string {
 	return GetMetaInfo(ctx, MerchantKey)
 }
 
+// WithMemberID adds member ID to the context
+func WithMemberID(ctx context.Context, memberID string) context.Context {
+	return SetMetaInfo(ctx, MemberKey, memberID)
+}
+
+// GetMemberID retrieves member ID from the context
+func GetMemberID(ctx context.Context) string {
+	return GetMetaInfo(ctx, MemberKey)
+}
+
+// WithDonorID adds donor ID to the context
+func WithDonorID(ctx context.Context, donorID string) context.Context {
+	return SetMetaInfo(ctx, DonorKey, donorID)
+}
+
+// GetDonorID retrieves donor ID from the context
+func GetDonorID(ctx context.Context) string {
+	return GetMetaInfo(ctx, DonorKey)
+}
+
 // WithTenantIsolation enables or disables tenant isolation for the context
 func WithTenantIsolation(ctx context.Context, enabled bool) context.Context {
 	enabledStr := "true"
@@ -184,6 +224,8 @@ func GetContextInfo(ctx context.Context) *ContextInfo {
 		UserID:     GetUserID(ctx),
 		RequestID:  GetRequestID(ctx),
 		MerchantID: GetMerchantID(ctx),
+		MemberID:   GetMemberID(ctx),
+		DonorID:    GetDonorID(ctx),
 	}
 }
 
@@ -192,7 +234,7 @@ func GetAllMetaInfo(ctx context.Context) map[string]string {
 	result := make(map[string]string)
 
 	// 获取所有预定义的键
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey}
+	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey}
 	for _, key := range keys {
 		if value := GetMetaInfo(ctx, key); value != "" {
 			result[key] = value
@@ -212,7 +254,7 @@ func SetMultipleMetaInfo(ctx context.Context, values map[string]string) context.
 
 // CopyMetaInfo 从源 context 复制 metainfo 到目标 context
 func CopyMetaInfo(fromCtx, toCtx context.Context) context.Context {
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey}
+	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey}
 	for _, key := range keys {
 		if value := GetMetaInfo(fromCtx, key); value != "" {
 			toCtx = SetMetaInfo(toCtx, key, value)

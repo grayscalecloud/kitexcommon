@@ -6,4 +6,6 @@ type ContextInfo struct {
 	UserID     string
 	RequestID  string
 	MerchantID string
+	MemberID   string
+	DonorID    string
 }
