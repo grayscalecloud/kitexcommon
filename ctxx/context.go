@@ -6,6 +6,16 @@ import (
 	"github.com/bytedance/gopkg/cloud/metainfo"
 )
 
+// Define key types for context name values
+type (
+	tenantNameKey   struct{}
+	memberNameKey   struct{}
+	merchantNameKey struct{}
+	userNameKey     struct{}
+	donorNameKey    struct{}
+	appNameKey      struct{}
+)
+
 // SetMetaInfo 设置 metainfo 值，同时设置到 context 和 metainfo 中
 func SetMetaInfo(ctx context.Context, key string, value string) context.Context {
 	// 设置到 metainfo 中
@@ -240,13 +250,19 @@ func IsMerchantIsolationEnabled(ctx context.Context) bool {
 // GetContextInfo retrieves all context information
 func GetContextInfo(ctx context.Context) *ContextInfo {
 	return &ContextInfo{
-		TenantID:   GetTenantID(ctx),
-		UserID:     GetUserID(ctx),
-		RequestID:  GetRequestID(ctx),
-		MerchantID: GetMerchantID(ctx),
-		MemberID:   GetMemberID(ctx),
-		DonorID:    GetDonorID(ctx),
-		AppType:    GetAppType(ctx),
+		TenantID:     GetTenantID(ctx),
+		UserID:       GetUserID(ctx),
+		RequestID:    GetRequestID(ctx),
+		MerchantID:   GetMerchantID(ctx),
+		MemberID:     GetMemberID(ctx),
+		DonorID:      GetDonorID(ctx),
+		AppType:      GetAppType(ctx),
+		TenantName:   GetTenantName(ctx),
+		UserName:     GetUserName(ctx),
+		MerchantName: GetMerchantName(ctx),
+		MemberName:   GetMemberName(ctx),
+		DonorName:    GetDonorName(ctx),
+		AppName:      GetAppName(ctx),
 	}
 }
 
@@ -295,4 +311,64 @@ func GetMetaInfoOrDefault(ctx context.Context, key, defaultValue string) string 
 		return value
 	}
 	return defaultValue
+}
+
+// WithTenantName adds tenant name to the context
+func WithTenantName(ctx context.Context, tenantName string) context.Context {
+	return SetMetaInfo(ctx, TenantNameKey, tenantName)
+}
+
+// GetTenantName retrieves tenant name from the context
+func GetTenantName(ctx context.Context) string {
+	return GetMetaInfo(ctx, TenantNameKey)
+}
+
+// WithMemberName adds member name to the context
+func WithMemberName(ctx context.Context, memberName string) context.Context {
+	return SetMetaInfo(ctx, MemberNameKey, memberName)
+}
+
+// GetMemberName retrieves member name from the context
+func GetMemberName(ctx context.Context) string {
+	return GetMetaInfo(ctx, MemberNameKey)
+}
+
+// WithMerchantName adds merchant name to the context
+func WithMerchantName(ctx context.Context, merchantName string) context.Context {
+	return SetMetaInfo(ctx, MerchantNameKey, merchantName)
+}
+
+// GetMerchantName retrieves merchant name from the context
+func GetMerchantName(ctx context.Context) string {
+	return GetMetaInfo(ctx, MerchantNameKey)
+}
+
+// WithUserName adds user name to the context
+func WithUserName(ctx context.Context, userName string) context.Context {
+	return SetMetaInfo(ctx, UserNameKey, userName)
+}
+
+// GetUserName retrieves user name from the context
+func GetUserName(ctx context.Context) string {
+	return GetMetaInfo(ctx, UserNameKey)
+}
+
+// WithDonorName adds donor name to the context
+func WithDonorName(ctx context.Context, donorName string) context.Context {
+	return SetMetaInfo(ctx, DonorNameKey, donorName)
+}
+
+// GetDonorName retrieves donor name from the context
+func GetDonorName(ctx context.Context) string {
+	return GetMetaInfo(ctx, DonorNameKey)
+}
+
+// WithAppName adds app name to the context
+func WithAppName(ctx context.Context, appName string) context.Context {
+	return SetMetaInfo(ctx, AppNameKey, appName)
+}
+
+// GetAppName retrieves app name from the context
+func GetAppName(ctx context.Context) string {
+	return GetMetaInfo(ctx, AppNameKey)
 }

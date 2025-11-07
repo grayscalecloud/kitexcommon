@@ -25,6 +25,12 @@ const (
 	MemberKey            = "member_id"
 	DonorKey             = "donor_id"
 	AppTypeKey           = "app_type"
+	TenantNameKey        = "tenant_name"
+	MemberNameKey        = "member_name"
+	MerchantNameKey      = "merchant_name"
+	UserNameKey          = "user_name"
+	DonorNameKey         = "donor_name"
+	AppNameKey           = "app_name"
 
 	// app type
 	AppMerchant = "merchant"
