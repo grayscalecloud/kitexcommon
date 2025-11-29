@@ -16,10 +16,9 @@ import (
 	"github.com/kitex-contrib/obs-opentelemetry/tracing"
 	"github.com/kitex-contrib/registry-nacos/registry"
 	"github.com/nacos-group/nacos-sdk-go/clients"
-	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
+	naming_client "github.com/nacos-group/nacos-sdk-go/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/vo"
-	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -140,17 +139,6 @@ func (s NacosServerSuite) setupOpenTelemetry() ([]server.Option, error) {
 		return nil, nil
 	}
 
-	// **关键：在 Kitex provider 创建之前，先设置包含 TenantIDProcessor 的 TracerProvider**
-	// 这样 Kitex 的 provider 可能会使用已存在的全局 TracerProvider，或者我们的 processor 会被包含
-	monitor.SetupTracerProviderWithTenantID(s.CurrentServiceName, s.Monitor.OTel.Endpoint)
-
-	// 检查设置后的全局 TracerProvider
-	beforeTP := otel.GetTracerProvider()
-	klog.Infof("Kitex provider 创建前，全局 TracerProvider: %T, 是否是我们设置的: %v",
-		beforeTP, beforeTP == monitor.TracerProvider)
-
-	// 然后创建 Kitex 的 provider
-	// 注意：如果 Kitex 的 provider 会创建新的 TracerProvider，我们需要在创建后再次尝试添加 processor
 	p := provider.NewOpenTelemetryProvider(
 		provider.WithServiceName(s.CurrentServiceName),
 		provider.WithExportEndpoint(s.Monitor.OTel.Endpoint),
@@ -158,19 +146,6 @@ func (s NacosServerSuite) setupOpenTelemetry() ([]server.Option, error) {
 		provider.WithEnableTracing(s.Monitor.OTel.Enable),
 		provider.WithInsecure(),
 	)
-
-	// 检查 Kitex provider 创建后的全局 TracerProvider
-	afterTP := otel.GetTracerProvider()
-	klog.Infof("Kitex provider 创建后，全局 TracerProvider: %T, 是否是我们设置的: %v",
-		afterTP, afterTP == monitor.TracerProvider)
-
-	if afterTP != monitor.TracerProvider {
-		klog.Warnf("Kitex provider 覆盖了我们的 TracerProvider，尝试添加 processor")
-		// 如果 Kitex 的 provider 覆盖了我们的 TracerProvider，尝试添加 processor
-		monitor.AddTenantIDProcessorToGlobalTracerProvider()
-	} else {
-		klog.Infof("Kitex provider 使用我们设置的 TracerProvider，TenantIDProcessor 应该已生效")
-	}
 
 	// 注册关闭钩子
 	server.RegisterShutdownHook(func() {

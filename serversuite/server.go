@@ -26,7 +26,6 @@ import (
 	"github.com/kitex-contrib/obs-opentelemetry/provider"
 	"github.com/kitex-contrib/obs-opentelemetry/tracing"
 	registryconsul "github.com/kitex-contrib/registry-consul"
-	"go.opentelemetry.io/otel"
 )
 
 type CommonServerSuite struct {
@@ -48,14 +47,6 @@ func (s CommonServerSuite) Options() []server.Option {
 
 	// ... consul 配置代码 ...
 
-	// **关键：在 Kitex provider 创建之前，先设置包含 TenantIDProcessor 的 TracerProvider**
-	monitor.SetupTracerProviderWithTenantID(s.CurrentServiceName, s.OtelEndpoint)
-
-	// 检查设置后的全局 TracerProvider
-	beforeTP := otel.GetTracerProvider()
-	klog.Infof("Kitex provider 创建前，全局 TracerProvider: %T, 是否是我们设置的: %v",
-		beforeTP, beforeTP == monitor.TracerProvider)
-
 	// 初始化 OpenTelemetry Provider
 	p := provider.NewOpenTelemetryProvider(
 		provider.WithServiceName(s.CurrentServiceName), // 添加服务名
@@ -64,19 +55,6 @@ func (s CommonServerSuite) Options() []server.Option {
 		provider.WithEnableTracing(true),
 		provider.WithInsecure(),
 	)
-
-	// 检查 Kitex provider 创建后的全局 TracerProvider
-	afterTP := otel.GetTracerProvider()
-	klog.Infof("Kitex provider 创建后，全局 TracerProvider: %T, 是否是我们设置的: %v",
-		afterTP, afterTP == monitor.TracerProvider)
-
-	if afterTP != monitor.TracerProvider {
-		klog.Warnf("Kitex provider 覆盖了我们的 TracerProvider，尝试添加 processor")
-		// 如果 Kitex 的 provider 覆盖了我们的 TracerProvider，尝试添加 processor
-		monitor.AddTenantIDProcessorToGlobalTracerProvider()
-	} else {
-		klog.Infof("Kitex provider 使用我们设置的 TracerProvider，TenantIDProcessor 应该已生效")
-	}
 
 	// 注册关闭钩子
 	server.RegisterShutdownHook(func() {

@@ -7,14 +7,6 @@ import (
 )
 
 // Define key types for context name values
-type (
-	tenantNameKey   struct{}
-	memberNameKey   struct{}
-	merchantNameKey struct{}
-	userNameKey     struct{}
-	donorNameKey    struct{}
-	appNameKey      struct{}
-)
 
 // SetMetaInfo 设置 metainfo 值，同时设置到 context 和 metainfo 中
 func SetMetaInfo(ctx context.Context, key string, value string) context.Context {
@@ -43,6 +35,15 @@ func SetMetaInfo(ctx context.Context, key string, value string) context.Context 
 	case AppTypeKey:
 		ctx = metainfo.WithValue(ctx, AppTypeKey, value)
 		return context.WithValue(ctx, appTypeKey{}, value)
+	case ExpandedKey:
+		ctx = metainfo.WithValue(ctx, ExpandedKey, value)
+		return context.WithValue(ctx, expandedKey{}, value)
+	case AppIdKey:
+		ctx = metainfo.WithValue(ctx, AppIdKey, value)
+		return context.WithValue(ctx, appIdKey{}, value)
+	case IpKey:
+		ctx = metainfo.WithValue(ctx, IpKey, value)
+		return context.WithValue(ctx, ipKey{}, value)
 	default:
 		// 对于其他 key，只设置到 metainfo 中
 		return ctx
@@ -100,6 +101,27 @@ func GetMetaInfo(ctx context.Context, key string) string {
 		}
 	case AppTypeKey:
 		if value, ok := ctx.Value(appTypeKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case AppIdKey:
+		if value, ok := ctx.Value(appIdKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case IpKey:
+		if value, ok := ctx.Value(ipKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case ExpandedKey:
+		if value, ok := ctx.Value(expandedKey{}).(string); ok {
 			if value == "" {
 				return ""
 			}
@@ -263,6 +285,9 @@ func GetContextInfo(ctx context.Context) *ContextInfo {
 		MemberName:   GetMemberName(ctx),
 		DonorName:    GetDonorName(ctx),
 		AppName:      GetAppName(ctx),
+		ExpandedInfo: GetMetaInfo(ctx, ExpandedKey),
+		AppId:        GetMetaInfo(ctx, AppIdKey),
+		Ip:           GetMetaInfo(ctx, IpKey),
 	}
 }
 
@@ -371,4 +396,34 @@ func WithAppName(ctx context.Context, appName string) context.Context {
 // GetAppName retrieves app name from the context
 func GetAppName(ctx context.Context) string {
 	return GetMetaInfo(ctx, AppNameKey)
+}
+
+// WithExpandedInfo adds expanded info to the context
+func WithExpandedInfo(ctx context.Context, expandedInfo string) context.Context {
+	return SetMetaInfo(ctx, ExpandedKey, expandedInfo)
+}
+
+// GetExpandedInfo retrieves expanded info from the context
+func GetExpandedInfo(ctx context.Context) string {
+	return GetMetaInfo(ctx, ExpandedKey)
+}
+
+// WithAppId adds app id to the context
+func WithAppId(ctx context.Context, appId string) context.Context {
+	return SetMetaInfo(ctx, AppIdKey, appId)
+}
+
+// GetAppId retrieves app id from the context
+func GetAppId(ctx context.Context) string {
+	return GetMetaInfo(ctx, AppIdKey)
+}
+
+// WithIp adds ip to the context
+func WithIp(ctx context.Context, ip string) context.Context {
+	return SetMetaInfo(ctx, IpKey, ip)
+}
+
+// GetIp retrieves ip from the context
+func GetIp(ctx context.Context) string {
+	return GetMetaInfo(ctx, IpKey)
 }
