@@ -12,6 +12,8 @@ type (
 	donorIDKey           struct{}
 	appTypeKey           struct{}
 	expandedKey          struct{}
+	appIdKey             struct{}
+	ipKey                struct{}
 )
 
 const (
@@ -33,6 +35,8 @@ const (
 	UserNameKey          = "user_name"
 	DonorNameKey         = "donor_name"
 	AppNameKey           = "app_name"
+	AppIdKey             = "app_id"
+	IpKey                = "ip"
 
 	// app type
 	AppMerchant = "merchant"
