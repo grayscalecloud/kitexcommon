@@ -1,19 +1,10 @@
 package ctxx
 
 // Define key types for context values to avoid conflicts
+// 注意：字符串类型的值使用 metainfo 存储，只有 bool 类型需要使用 context.WithValue
 type (
-	tenantKey            struct{}
-	userIDKey            struct{}
-	requestIDKey         struct{}
-	merchantIDKey        struct{}
 	tenantIsolationKey   struct{}
 	merchantIsolationKey struct{}
-	memberIDKey          struct{}
-	donorIDKey           struct{}
-	appTypeKey           struct{}
-	expandedKey          struct{}
-	appIdKey             struct{}
-	ipKey                struct{}
 )
 
 const (
@@ -37,6 +28,7 @@ const (
 	AppNameKey           = "app_name"
 	AppIdKey             = "app_id"
 	IpKey                = "ip"
+	UserAgentKey         = "user_agent"
 
 	// app type
 	AppMerchant = "merchant"
