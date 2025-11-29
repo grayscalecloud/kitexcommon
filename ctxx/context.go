@@ -14,6 +14,7 @@ type (
 	userNameKey     struct{}
 	donorNameKey    struct{}
 	appNameKey      struct{}
+	expandedInfoKey struct{}
 )
 
 // SetMetaInfo 设置 metainfo 值，同时设置到 context 和 metainfo 中
@@ -43,6 +44,9 @@ func SetMetaInfo(ctx context.Context, key string, value string) context.Context 
 	case AppTypeKey:
 		ctx = metainfo.WithValue(ctx, AppTypeKey, value)
 		return context.WithValue(ctx, appTypeKey{}, value)
+	case ExpandedKey:
+		ctx = metainfo.WithValue(ctx, ExpandedKey, value)
+		return context.WithValue(ctx, expandedInfoKey{}, value)
 	default:
 		// 对于其他 key，只设置到 metainfo 中
 		return ctx
@@ -100,6 +104,13 @@ func GetMetaInfo(ctx context.Context, key string) string {
 		}
 	case AppTypeKey:
 		if value, ok := ctx.Value(appTypeKey{}).(string); ok {
+			if value == "" {
+				return ""
+			}
+			return value
+		}
+	case ExpandedKey:
+		if value, ok := ctx.Value(expandedInfoKey{}).(string); ok {
 			if value == "" {
 				return ""
 			}
@@ -263,6 +274,7 @@ func GetContextInfo(ctx context.Context) *ContextInfo {
 		MemberName:   GetMemberName(ctx),
 		DonorName:    GetDonorName(ctx),
 		AppName:      GetAppName(ctx),
+		ExpandedInfo: GetMetaInfo(ctx, ExpandedKey),
 	}
 }
 
@@ -371,4 +383,14 @@ func WithAppName(ctx context.Context, appName string) context.Context {
 // GetAppName retrieves app name from the context
 func GetAppName(ctx context.Context) string {
 	return GetMetaInfo(ctx, AppNameKey)
+}
+
+// WithExpandedInfo adds expanded info to the context
+func WithExpandedInfo(ctx context.Context, expandedInfo string) context.Context {
+	return SetMetaInfo(ctx, ExpandedKey, expandedInfo)
+}
+
+// GetExpandedInfo retrieves expanded info from the context
+func GetExpandedInfo(ctx context.Context) string {
+	return GetMetaInfo(ctx, ExpandedKey)
 }

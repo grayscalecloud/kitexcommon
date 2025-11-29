@@ -15,4 +15,5 @@ type ContextInfo struct {
 	MemberName   string
 	DonorName    string
 	AppName      string
+	ExpandedInfo string
 }
