@@ -10,123 +10,17 @@ import (
 
 // SetMetaInfo 设置 metainfo 值，同时设置到 context 和 metainfo 中
 func SetMetaInfo(ctx context.Context, key string, value string) context.Context {
-	// 设置到 metainfo 中
-	ctx = metainfo.WithValue(ctx, key, value)
-	// 根据 key 类型设置到对应的 context 中
-	switch key {
-	case TenantKey:
-		ctx = metainfo.WithValue(ctx, TenantKey, value)
-		return context.WithValue(ctx, tenantKey{}, value)
-	case UserKey:
-		ctx = metainfo.WithValue(ctx, UserKey, value)
-		return context.WithValue(ctx, userIDKey{}, value)
-	case RequestKey:
-		ctx = metainfo.WithValue(ctx, RequestKey, value)
-		return context.WithValue(ctx, requestIDKey{}, value)
-	case MerchantKey:
-		ctx = metainfo.WithValue(ctx, MerchantKey, value)
-		return context.WithValue(ctx, merchantIDKey{}, value)
-	case MemberKey:
-		ctx = metainfo.WithValue(ctx, MemberKey, value)
-		return context.WithValue(ctx, memberIDKey{}, value)
-	case DonorKey:
-		ctx = metainfo.WithValue(ctx, DonorKey, value)
-		return context.WithValue(ctx, donorIDKey{}, value)
-	case AppTypeKey:
-		ctx = metainfo.WithValue(ctx, AppTypeKey, value)
-		return context.WithValue(ctx, appTypeKey{}, value)
-	case ExpandedKey:
-		ctx = metainfo.WithValue(ctx, ExpandedKey, value)
-		return context.WithValue(ctx, expandedKey{}, value)
-	case AppIdKey:
-		ctx = metainfo.WithValue(ctx, AppIdKey, value)
-		return context.WithValue(ctx, appIdKey{}, value)
-	case IpKey:
-		ctx = metainfo.WithValue(ctx, IpKey, value)
-		return context.WithValue(ctx, ipKey{}, value)
-	default:
-		// 对于其他 key，只设置到 metainfo 中
-		return ctx
-	}
+	return metainfo.WithValue(ctx, key, value)
 }
 
-// GetMetaInfo 获取 metainfo 值，支持 fallback 机制
+// GetMetaInfo 获取 metainfo 值
 func GetMetaInfo(ctx context.Context, key string) string {
 	if ctx == nil {
 		return ""
 	}
 
-	// 首先尝试从 metainfo 中获取
 	if value, ok := metainfo.GetValue(ctx, key); ok && value != "" {
 		return value
-	}
-
-	// 最后尝试从 context 中获取
-	switch key {
-	case TenantKey:
-		if value, ok := ctx.Value(tenantKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case UserKey:
-		if value, ok := ctx.Value(userIDKey{}).(string); ok {
-			return value
-		}
-	case RequestKey:
-		if value, ok := ctx.Value(requestIDKey{}).(string); ok {
-			return value
-		}
-	case MerchantKey:
-		if value, ok := ctx.Value(merchantIDKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case MemberKey:
-		if value, ok := ctx.Value(memberIDKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case DonorKey:
-		if value, ok := ctx.Value(donorIDKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case AppTypeKey:
-		if value, ok := ctx.Value(appTypeKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case AppIdKey:
-		if value, ok := ctx.Value(appIdKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case IpKey:
-		if value, ok := ctx.Value(ipKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
-	case ExpandedKey:
-		if value, ok := ctx.Value(expandedKey{}).(string); ok {
-			if value == "" {
-				return ""
-			}
-			return value
-		}
 	}
 
 	return ""
@@ -295,8 +189,12 @@ func GetContextInfo(ctx context.Context) *ContextInfo {
 func GetAllMetaInfo(ctx context.Context) map[string]string {
 	result := make(map[string]string)
 
-	// 获取所有预定义的键
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey}
+	// 获取所有预定义的键（包括 ID、Name 和 UserAgent）
+	keys := []string{
+		TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey,
+		TenantNameKey, UserNameKey, MerchantNameKey, MemberNameKey, DonorNameKey, AppNameKey,
+		UserAgentKey,
+	}
 	for _, key := range keys {
 		if value := GetMetaInfo(ctx, key); value != "" {
 			result[key] = value
@@ -316,7 +214,11 @@ func SetMultipleMetaInfo(ctx context.Context, values map[string]string) context.
 
 // CopyMetaInfo 从源 context 复制 metainfo 到目标 context
 func CopyMetaInfo(fromCtx, toCtx context.Context) context.Context {
-	keys := []string{TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey}
+	keys := []string{
+		TenantKey, UserKey, RequestKey, MerchantKey, MemberKey, DonorKey, AppTypeKey,
+		TenantNameKey, UserNameKey, MerchantNameKey, MemberNameKey, DonorNameKey, AppNameKey,
+		UserAgentKey,
+	}
 	for _, key := range keys {
 		if value := GetMetaInfo(fromCtx, key); value != "" {
 			toCtx = SetMetaInfo(toCtx, key, value)
@@ -398,14 +300,24 @@ func GetAppName(ctx context.Context) string {
 	return GetMetaInfo(ctx, AppNameKey)
 }
 
+// WithUserAgent adds user agent to the context
+func WithUserAgent(ctx context.Context, userAgent string) context.Context {
+	return SetMetaInfo(ctx, UserAgentKey, userAgent)
+}
+
+// GetUserAgent retrieves user agent from the context
+func GetUserAgent(ctx context.Context) string {
+	return GetMetaInfo(ctx, UserAgentKey)
+}
+
 // WithExpandedInfo adds expanded info to the context
-func WithExpandedInfo(ctx context.Context, expandedInfo string) context.Context {
-	return SetMetaInfo(ctx, ExpandedKey, expandedInfo)
+func WithExpandedInfo(ctx context.Context, key string, expandedInfo string) context.Context {
+	return SetMetaInfo(ctx, key, expandedInfo)
 }
 
 // GetExpandedInfo retrieves expanded info from the context
-func GetExpandedInfo(ctx context.Context) string {
-	return GetMetaInfo(ctx, ExpandedKey)
+func GetExpandedInfo(ctx context.Context, key string) string {
+	return GetMetaInfo(ctx, key)
 }
 
 // WithAppId adds app id to the context
