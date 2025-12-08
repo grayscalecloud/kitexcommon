@@ -29,6 +29,7 @@ const (
 	AppIdKey             = "app_id"
 	IpKey                = "ip"
 	UserAgentKey         = "user_agent"
+	TenantTypeKey        = "tenant_type"
 
 	// app type
 	AppMerchant = "merchant"
@@ -37,4 +38,10 @@ const (
 	AppAdmin    = "admin"
 	AppPlatform = "platform"
 	AppCallback = "callback"
+
+	// tenant type
+	// 平台版
+	TenantTypePlatform = "platform"
+	// 商户版
+	TenantTypeMerchant = "merchant"
 )

@@ -339,3 +339,13 @@ func WithIp(ctx context.Context, ip string) context.Context {
 func GetIp(ctx context.Context) string {
 	return GetMetaInfo(ctx, IpKey)
 }
+
+// WithTenantType adds tenant type to the context
+func WithTenantType(ctx context.Context, tenantType string) context.Context {
+	return SetMetaInfo(ctx, TenantTypeKey, tenantType)
+}
+
+// GetTenantType 获取租户类型
+func GetTenantType(ctx context.Context) string {
+	return GetMetaInfo(ctx, TenantTypeKey)
+}
