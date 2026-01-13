@@ -2,20 +2,21 @@ package ctxx
 
 // ContextInfo holds all context information
 type ContextInfo struct {
-	TenantID     string
-	UserID       string
-	RequestID    string
-	MerchantID   string
-	MemberID     string
-	DonorID      string
-	AppType      string
-	TenantName   string
-	UserName     string
-	MerchantName string
-	MemberName   string
-	DonorName    string
-	AppName      string
-	ExpandedInfo string
-	AppId        string
-	Ip           string
+	TenantID            string
+	UserID              string
+	RequestID           string
+	MerchantID          string
+	MemberID            string
+	DonorID             string
+	AppType             string
+	TenantName          string
+	UserName            string
+	MerchantName        string
+	MemberName          string
+	DonorName           string
+	AppName             string
+	ExpandedInfo        string
+	AppId               string
+	Ip                  string
+	SkipDesensitization bool
 }

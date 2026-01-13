@@ -123,8 +123,7 @@ func WithTenantIsolation(ctx context.Context, enabled bool) context.Context {
 	if !enabled {
 		enabledStr = "false"
 	}
-	ctx = metainfo.WithValue(ctx, TenantIsolationKey, enabledStr)
-	return context.WithValue(ctx, tenantIsolationKey{}, enabled)
+	return metainfo.WithValue(ctx, TenantIsolationKey, enabledStr)
 }
 
 // IsTenantIsolationEnabled checks if tenant isolation is enabled for the context
@@ -133,8 +132,9 @@ func IsTenantIsolationEnabled(ctx context.Context) bool {
 		return true // 默认启用租户隔离
 	}
 
-	if enabled, ok := ctx.Value(tenantIsolationKey{}).(bool); ok {
-		return enabled
+	value := GetMetaInfo(ctx, TenantIsolationKey)
+	if value == "false" {
+		return false
 	}
 
 	return true // 默认启用租户隔离
@@ -146,8 +146,7 @@ func WithMerchantIsolation(ctx context.Context, enabled bool) context.Context {
 	if !enabled {
 		enabledStr = "false"
 	}
-	ctx = metainfo.WithValue(ctx, MerchantIsolationKey, enabledStr)
-	return context.WithValue(ctx, merchantIsolationKey{}, enabled)
+	return metainfo.WithValue(ctx, MerchantIsolationKey, enabledStr)
 }
 
 // IsMerchantIsolationEnabled checks if merchant isolation is enabled for the context
@@ -156,8 +155,9 @@ func IsMerchantIsolationEnabled(ctx context.Context) bool {
 		return true // 默认启用商户隔离
 	}
 
-	if enabled, ok := ctx.Value(merchantIsolationKey{}).(bool); ok {
-		return enabled
+	value := GetMetaInfo(ctx, MerchantIsolationKey)
+	if value == "false" {
+		return false
 	}
 
 	return true // 默认启用商户隔离
@@ -166,22 +166,23 @@ func IsMerchantIsolationEnabled(ctx context.Context) bool {
 // GetContextInfo retrieves all context information
 func GetContextInfo(ctx context.Context) *ContextInfo {
 	return &ContextInfo{
-		TenantID:     GetTenantID(ctx),
-		UserID:       GetUserID(ctx),
-		RequestID:    GetRequestID(ctx),
-		MerchantID:   GetMerchantID(ctx),
-		MemberID:     GetMemberID(ctx),
-		DonorID:      GetDonorID(ctx),
-		AppType:      GetAppType(ctx),
-		TenantName:   GetTenantName(ctx),
-		UserName:     GetUserName(ctx),
-		MerchantName: GetMerchantName(ctx),
-		MemberName:   GetMemberName(ctx),
-		DonorName:    GetDonorName(ctx),
-		AppName:      GetAppName(ctx),
-		ExpandedInfo: GetMetaInfo(ctx, ExpandedKey),
-		AppId:        GetMetaInfo(ctx, AppIdKey),
-		Ip:           GetMetaInfo(ctx, IpKey),
+		TenantID:            GetTenantID(ctx),
+		UserID:              GetUserID(ctx),
+		RequestID:           GetRequestID(ctx),
+		MerchantID:          GetMerchantID(ctx),
+		MemberID:            GetMemberID(ctx),
+		DonorID:             GetDonorID(ctx),
+		AppType:             GetAppType(ctx),
+		TenantName:          GetTenantName(ctx),
+		UserName:            GetUserName(ctx),
+		MerchantName:        GetMerchantName(ctx),
+		MemberName:          GetMemberName(ctx),
+		DonorName:           GetDonorName(ctx),
+		AppName:             GetAppName(ctx),
+		ExpandedInfo:        GetMetaInfo(ctx, ExpandedKey),
+		AppId:               GetMetaInfo(ctx, AppIdKey),
+		Ip:                  GetMetaInfo(ctx, IpKey),
+		SkipDesensitization: IsSkipDesensitizationEnabled(ctx),
 	}
 }
 
@@ -348,4 +349,27 @@ func WithTenantType(ctx context.Context, tenantType string) context.Context {
 // GetTenantType 获取租户类型
 func GetTenantType(ctx context.Context) string {
 	return GetMetaInfo(ctx, TenantTypeKey)
+}
+
+// WithSkipDesensitization enables or disables skipping desensitization for the context
+func WithSkipDesensitization(ctx context.Context, skip bool) context.Context {
+	skipStr := "true"
+	if !skip {
+		skipStr = "false"
+	}
+	return SetMetaInfo(ctx, SkipDesensitizationKey, skipStr)
+}
+
+// IsSkipDesensitizationEnabled checks if desensitization should be skipped for the context
+func IsSkipDesensitizationEnabled(ctx context.Context) bool {
+	if ctx == nil {
+		return false // 默认不跳过脱敏（即启用脱敏）
+	}
+
+	value := GetMetaInfo(ctx, SkipDesensitizationKey)
+	if value == "true" {
+		return true
+	}
+
+	return false // 默认不跳过脱敏（即启用脱敏）
 }
