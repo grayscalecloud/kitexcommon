@@ -37,7 +37,7 @@ const (
 
 	// tenant type
 	// 平台版
-	TenantTypePlatform = "platform"
+	TenantTypePlatform = "PLATFORM"
 	// 商户版
-	TenantTypeMerchant = "merchant"
+	TenantTypeMerchant = "MERCHANT"
 )
