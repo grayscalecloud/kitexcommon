@@ -10,10 +10,10 @@ import (
 	"github.com/cloudwego/kitex/pkg/transmeta"
 	"github.com/grayscalecloud/kitexcommon/utils"
 	"github.com/kitex-contrib/obs-opentelemetry/tracing"
-	"github.com/kitex-contrib/registry-nacos/resolver"
-	"github.com/nacos-group/nacos-sdk-go/clients"
-	"github.com/nacos-group/nacos-sdk-go/common/constant"
-	"github.com/nacos-group/nacos-sdk-go/vo"
+	"github.com/kitex-contrib/registry-nacos/v2/resolver"
+	"github.com/nacos-group/nacos-sdk-go/v2/clients"
+	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
+	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 )
 
 type NacosClientSuite struct {

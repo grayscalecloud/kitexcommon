@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/grayscalecloud/kitexcommon/kvconfig"
+	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"gopkg.in/yaml.v2"
-	"github.com/nacos-group/nacos-sdk-go/common/constant"
 )
 
 // NacosConfigExample Nacos 配置使用示例
@@ -51,7 +51,7 @@ func NacosConfigExample() {
 		log.Printf("获取自定义配置失败: %v", err)
 		return
 	}
-	
+
 	// 解析自定义配置
 	var customConfig CustomConfig
 	err = yaml.Unmarshal([]byte(customConfigStr), &customConfig)
