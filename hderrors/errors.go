@@ -85,14 +85,20 @@ func Wrap(err error, code EnumsType, message string) *BusinessError {
 	}
 
 	extra := make(map[string]string)
-	// 如果原始错误是 BusinessError，保留其 extra 信息
+	// 如果原始错误是 BusinessError，保留其 extra 信息，并用其 message 替换传入的 message
 	var be *BusinessError
-	if errors.As(err, &be) && be.extra != nil {
-		for k, v := range be.extra {
-			extra[k] = v
+	if errors.As(err, &be) {
+		if be.extra != nil {
+			for k, v := range be.extra {
+				extra[k] = v
+			}
 		}
 	}
-	msg := fmt.Sprintf("%s:\n %v", message, err)
+
+	msg := message
+	if be != nil {
+		msg = be.Message
+	}
 
 	return &BusinessError{
 		Code:    code,
@@ -177,7 +183,7 @@ func (e *BusinessError) BizStatusCode() int32 {
 
 // BizMessage 获取业务错误消息（用于RPC返回）
 func (e *BusinessError) BizMessage() string {
-	return "biz error: " + e.Message
+	return e.Message
 }
 
 // BizExtra 获取业务错误的额外信息（用于RPC返回）
