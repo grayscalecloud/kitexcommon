@@ -107,6 +107,7 @@ func initMetric(serverName string, cfg *hdmodel.Monitor) CtxCallback {
 		Ephemeral:   true,
 		Metadata: map[string]string{
 			"service": serverName,
+			"type":    "metrics",
 		},
 	})
 	if err != nil {
