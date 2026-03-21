@@ -101,6 +101,22 @@ func GetTimeToStringConverter() copier.TypeConverter {
 	}
 }
 
+// GetTimePtrToStringConverter 返回一个类型转换器，用于将 *time.Time 转换为格式化的日期字符串
+// 该转换器处理可空时间字段，如果指针为 nil 则返回空字符串
+func GetTimePtrToStringConverter() copier.TypeConverter {
+	return copier.TypeConverter{
+		SrcType: &time.Time{},
+		DstType: "",
+		Fn: func(src interface{}) (interface{}, error) {
+			t, ok := src.(*time.Time)
+			if !ok || t == nil {
+				return "", nil
+			}
+			return t.Format("2006-01-02 15:04:05"), nil
+		},
+	}
+}
+
 // GetTimeToStringConverterWithFormat 返回一个指定格式的时间到字符串转换器
 // format 参数直接使用 Go 的时间格式字符串，例如：
 // - "2006-01-02 15:04:05" (标准格式)
