@@ -84,7 +84,7 @@ func (s NacosClientSuite) Options() []client.Option {
 	opts := []client.Option{
 		client.WithResolver(r),
 		client.WithLoadBalancer(loadbalance.NewWeightedBalancer()), // load balance
-		client.WithMetaHandler(transmeta.ClientHTTP2Handler),
+		client.WithMetaHandler(transmeta.ClientTTHeaderHandler), // 使用 TTHeader 协议的元数据处理器
 		client.WithClientBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),

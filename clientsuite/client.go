@@ -44,7 +44,7 @@ func (s CommonClientSuite) Options() []client.Option {
 		client.WithResolver(r),
 		client.WithLoadBalancer(loadbalance.NewWeightedBalancer()), // load balance
 		//client.WithMuxConnection(1),                                // multiplexing 这个在windown 下不支持
-		client.WithMetaHandler(transmeta.ClientHTTP2Handler),
+		client.WithMetaHandler(transmeta.ClientTTHeaderHandler), // 使用 TTHeader 协议的元数据处理器
 		client.WithClientBasicInfo(&rpcinfo.EndpointBasicInfo{
 			ServiceName: s.CurrentServiceName,
 		}),

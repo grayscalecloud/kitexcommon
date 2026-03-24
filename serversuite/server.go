@@ -36,7 +36,7 @@ type CommonServerSuite struct {
 
 func (s CommonServerSuite) Options() []server.Option {
 	opts := []server.Option{
-		server.WithMetaHandler(transmeta.ServerHTTP2Handler),
+		server.WithMetaHandler(transmeta.ServerTTHeaderHandler), // 使用 TTHeader 协议的元数据处理器
 	}
 
 	r, err := registryconsul.NewConsulRegister(s.RegistryAddr)
