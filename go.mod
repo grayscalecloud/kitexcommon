@@ -25,6 +25,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.37.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -89,6 +90,8 @@ require (
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/jhump/protoreflect v1.8.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
